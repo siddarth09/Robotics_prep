@@ -1,0 +1,1140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROBOPREP — MuJoCo & Simulation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg-deep: #060a12; --bg-main: #0a0e17; --bg-card: #111827; --bg-card-hover: #162032; --bg-card-open: #0f1b2d;
+  --border: #1e2a3a; --border-glow: #263248; --text-primary: #e8ecf1; --text-secondary: #8892a4; --text-muted: #4a5568;
+  --cyan: #00e5ff; --cyan-dim: rgba(0,229,255,0.12); --orange: #ff6b35; --orange-dim: rgba(255,107,53,0.12);
+  --green: #00e676; --green-dim: rgba(0,230,118,0.12); --purple: #b388ff; --purple-dim: rgba(179,136,255,0.12);
+  --yellow: #ffd740; --yellow-dim: rgba(255,215,64,0.12);
+  --section-accent: var(--yellow); --section-dim: var(--yellow-dim);
+  --font-mono: 'JetBrains Mono', monospace; --font-sans: 'DM Sans', sans-serif;
+}
+html { scroll-behavior: smooth; }
+body { background: var(--bg-deep); color: var(--text-primary); font-family: var(--font-sans); min-height: 100vh; overflow-x: hidden; }
+body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(255,215,64,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,215,64,0.03) 1px, transparent 1px); background-size: 60px 60px; pointer-events: none; z-index: 0; }
+.navbar { position: fixed; top: 0; left: 0; right: 0; height: 64px; background: rgba(6,10,18,0.88); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; z-index: 100; }
+.logo { font-family: var(--font-mono); font-weight: 800; font-size: 1.3rem; letter-spacing: 3px; color: var(--cyan); text-shadow: 0 0 20px rgba(0,229,255,0.4); text-decoration: none; }
+.logo span { color: var(--text-muted); font-weight: 400; }
+.nav-stats { display: flex; gap: 20px; align-items: center; font-family: var(--font-mono); font-size: 0.78rem; }
+.nav-stat { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+.nav-stat .val { color: var(--text-primary); font-weight: 600; }
+.nav-stat .icon { font-size: 1rem; }
+.section-header { position: relative; z-index: 1; margin-top: 64px; padding: 48px 24px 20px; max-width: 900px; margin-left: auto; margin-right: auto; }
+.back-link { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); text-decoration: none; margin-bottom: 20px; transition: color 0.2s; }
+.back-link:hover { color: var(--text-secondary); }
+.section-tag { font-family: var(--font-mono); font-size: 0.68rem; font-weight: 600; letter-spacing: 2.5px; text-transform: uppercase; color: var(--section-accent); margin-bottom: 8px; }
+.section-title { font-family: var(--font-mono); font-size: clamp(1.5rem, 4vw, 2rem); font-weight: 800; margin-bottom: 8px; }
+.section-desc { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 24px; }
+.progress-wrap { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.progress-text { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); min-width: 70px; }
+.progress-bar-bg { flex: 1; height: 6px; background: var(--bg-card); border-radius: 100px; overflow: hidden; border: 1px solid var(--border); }
+.progress-bar-fill { height: 100%; background: var(--section-accent); border-radius: 100px; transition: width 0.5s ease; box-shadow: 0 0 10px rgba(255,215,64,0.3); }
+.filters { position: relative; z-index: 1; max-width: 900px; margin: 0 auto 24px; padding: 0 24px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.filter-chip { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; letter-spacing: 1px; padding: 7px 16px; border-radius: 100px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
+.filter-chip:hover { border-color: var(--text-muted); color: var(--text-secondary); }
+.filter-chip.active { background: var(--section-dim); border-color: var(--section-accent); color: var(--section-accent); }
+.search-input { flex: 1; min-width: 160px; font-family: var(--font-mono); font-size: 0.78rem; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary); outline: none; transition: border-color 0.2s; }
+.search-input::placeholder { color: var(--text-muted); }
+.search-input:focus { border-color: var(--section-accent); }
+.qa-list { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 0 24px 80px; display: flex; flex-direction: column; gap: 12px; }
+.qa-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: border-color 0.3s; }
+.qa-card:hover { border-color: var(--border-glow); }
+.qa-card.completed { border-left: 3px solid var(--green); }
+.qa-card.open { background: var(--bg-card-open); border-color: var(--border-glow); }
+.qa-question { display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px; cursor: pointer; user-select: none; }
+.qa-num { font-family: var(--font-mono); font-size: 0.7rem; font-weight: 700; color: var(--section-accent); min-width: 28px; padding-top: 2px; }
+.qa-text { flex: 1; font-size: 0.95rem; font-weight: 600; line-height: 1.5; }
+.qa-badges { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.diff-badge { font-family: var(--font-mono); font-size: 0.6rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 10px; border-radius: 100px; }
+.diff-badge.core { background: var(--green-dim); color: var(--green); }
+.diff-badge.intermediate { background: var(--orange-dim); color: var(--orange); }
+.diff-badge.advanced { background: var(--purple-dim); color: var(--purple); }
+.qa-chevron { font-size: 1rem; color: var(--text-muted); transition: transform 0.3s; flex-shrink: 0; padding-top: 2px; }
+.qa-card.open .qa-chevron { transform: rotate(180deg); }
+.qa-answer { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+.qa-card.open .qa-answer { max-height: 8000px; }
+.qa-answer-inner { padding: 0 20px 20px 60px; font-size: 0.9rem; line-height: 1.75; color: var(--text-secondary); }
+.qa-answer-inner b { color: var(--text-primary); }
+.qa-answer-inner code { font-family: var(--font-mono); font-size: 0.8rem; background: rgba(255,215,64,0.08); color: var(--yellow); padding: 2px 7px; border-radius: 4px; }
+.formula { display: block; font-family: var(--font-mono); font-size: 0.82rem; background: rgba(255,215,64,0.08); color: var(--yellow); border-left: 3px solid var(--yellow); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; overflow-x: auto; white-space: pre-wrap; }
+.key-point { display: block; background: var(--green-dim); border-left: 3px solid var(--green); padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; color: var(--text-primary); font-size: 0.85rem; }
+.interview-tip { display: block; background: var(--orange-dim); border-left: 3px solid var(--orange); padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; color: var(--text-primary); font-size: 0.85rem; }
+.qa-answer-inner p { margin-bottom: 10px; }
+.review-btn { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 1px; padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; margin-top: 16px; transition: all 0.2s; }
+.review-btn:hover { border-color: var(--green); color: var(--green); }
+.review-btn.done { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+</style>
+</head>
+<body>
+<nav class="navbar">
+  <a href="index.html" class="logo">ROBO<span>PREP</span></a>
+  <div class="nav-stats">
+    <div class="nav-stat"><span class="icon">⚡</span><span class="val" id="nav-xp">0</span> XP</div>
+    <div class="nav-stat"><span class="icon">🔥</span><span class="val" id="nav-streak">0</span> day</div>
+    <div class="nav-stat"><span class="icon">✓</span><span class="val" id="nav-done">0</span> done</div>
+  </div>
+</nav>
+<div class="section-header">
+  <a href="index.html" class="back-link">← back to dashboard</a>
+  <div class="section-tag">Module 05</div>
+  <h1 class="section-title">MuJoCo & Simulation</h1>
+  <p class="section-desc">MJCF modeling, contact dynamics, sim-to-real physics, MJX GPU pipelines, simulation debugging, and building training environments that actually transfer to hardware.</p>
+  <div class="progress-wrap">
+    <span class="progress-text" id="prog-text">0 / 20</span>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="prog-bar" style="width:0%"></div></div>
+  </div>
+</div>
+<div class="filters">
+  <button class="filter-chip active" data-diff="all">All</button>
+  <button class="filter-chip" data-diff="core">Core</button>
+  <button class="filter-chip" data-diff="intermediate">Intermediate</button>
+  <button class="filter-chip" data-diff="advanced">Advanced</button>
+  <input type="text" class="search-input" id="search-input" placeholder="Search questions...">
+</div>
+<div class="qa-list" id="qa-list"></div>
+
+<script>
+const SECTION_KEY = 'mujoco';
+const QUESTIONS = [
+  {
+    q: "Your MJCF model loads without errors, but the robot explodes on the first timestep. Walk through a systematic debugging process — what is your checklist?",
+    diff: "core",
+    a: `<p>This is the most common MuJoCo failure mode and it is almost always a modeling problem, not a physics engine bug. Here is my systematic approach:</p>
+
+<p><b>Step 1 — Visual inspection before stepping:</b></p>
+<p>Load the model with <code>mj_loadXML</code>, render it at timestep 0 without calling <code>mj_step</code>. Look for overlapping geometries — if two collision geometries interpenetrate at the initial configuration, MuJoCo will generate enormous contact forces on the first step to resolve the overlap, launching bodies into space. This is the #1 cause of explosions.</p>
+
+<p><b>Step 2 — Check qpos0 and joint limits:</b></p>
+<p>Ensure the initial joint configuration <code>qpos0</code> (set via <code>keyframe</code> or default joint values) places all bodies in a physically valid pose. Common mistake: default joint angles are 0, but that might mean all links are stacked at the origin. Explicitly set <code>&lt;key qpos="..."&gt;</code> to a reasonable configuration.</p>
+
+<p><b>Step 3 — Timestep sanity check:</b></p>
+<span class="formula">Default timestep = 2ms (0.002s)
+If your model has stiff contacts or small masses:
+  Try timestep = 0.5ms (0.0005s)
+  Or switch to implicit/implicitfast integrator</span>
+<p>A model with tiny masses (&lt; 0.01 kg) or stiff tendons needs a smaller timestep or implicit integration. The explicit Euler integrator is conditionally stable — exceed the stability limit and energy blows up exponentially.</p>
+
+<p><b>Step 4 — Mass and inertia audit:</b></p>
+<p>Check for unrealistic mass ratios. If one body is 100 kg and an adjacent body is 0.001 kg, the contact solver struggles. MuJoCo computes inertias from geometry if you do not specify them — make sure <code>density</code> is set appropriately or provide explicit <code>&lt;inertial&gt;</code> elements. Use <code>model.body_mass</code> and <code>model.body_inertia</code> to audit.</p>
+
+<p><b>Step 5 — Contact parameters:</b></p>
+<p>If contacts exist, check <code>solref</code> and <code>solimp</code>. The default <code>solref="0.02 1"</code> defines a spring-damper with timeconst=0.02s and damping ratio=1. If your timestep is close to the contact timeconst, the contact becomes stiff relative to the integrator ability to resolve it.</p>
+
+<p><b>Step 6 — The armature trick:</b></p>
+<p>Add <code>armature="0.01"</code> to joints. This adds virtual rotor inertia to the diagonal of the mass matrix, regularizing the system. It is physically meaningful (real motors have rotor inertia) and dramatically improves numerical stability.</p>
+
+<span class="key-point">Key insight: MuJoCo never "crashes" — it faithfully integrates whatever equations you give it. If the model explodes, the equations are poorly conditioned. The fix is always in the model (initial state, masses, contacts, timestep), not in the simulator.</span>
+
+<span class="interview-tip">🎯 Interview tip: Walk through this checklist methodically: "First I check for initial interpenetration. Then verify timestep vs contact stiffness. Then audit mass ratios. Then try adding armature or switching to implicit integration." This shows you have debugged real models, not just run tutorials.</span>`
+  },
+  {
+    q: "Explain the difference between solref and solimp in MuJoCo contact model. Your quadruped feet are bouncing off the ground like trampolines — what do you tune and why?",
+    diff: "core",
+    a: `<p>These two parameters control completely different aspects of MuJoCo constraint-based contact model.</p>
+
+<p><b>solref — reference behavior (the "what"):</b></p>
+<p><code>solref</code> defines the desired impedance of the constraint. Default is <code>"0.02 1"</code> — the first value is the time constant (0.02s), the second is the damping ratio (1.0 = critically damped).</p>
+<span class="formula">solref = [timeconst, dampratio]
+
+Natural frequency: omega = 1 / timeconst
+Damping: zeta = dampratio
+
+Contact behaves like: m*x_dd + 2*zeta*omega*x_d + omega^2*x = 0
+
+timeconst down = stiffer contact (faster response)
+dampratio = 1 = critically damped (no bounce)
+dampratio < 1 = underdamped (bouncy)
+dampratio > 1 = overdamped (sluggish)</span>
+
+<p><b>solimp — solver impedance (the "how well"):</b></p>
+<p><code>solimp</code> controls the solver constraint behavior. Default is <code>"0.9 0.95 0.001 0.5 2"</code>. The first two values define the range of the impedance function (0 = soft, 1 = hard constraint). Think of it as: <code>solref</code> says "this contact should feel like a spring with these parameters" and <code>solimp</code> says "how strictly should the solver enforce that behavior."</p>
+
+<p><b>Diagnosing the trampoline feet:</b></p>
+<p>If the quadruped feet are bouncing, it is almost certainly a <code>solref</code> damping issue. The damping ratio is too low — the contact is underdamped and stores/releases energy like a spring.</p>
+
+<p><b>Fix 1 — Increase damping ratio:</b></p>
+<span class="formula">&lt;default&gt;
+  &lt;geom solref="0.02 1.0"/&gt;   &lt;!-- was "0.02 0.5" = underdamped --&gt;
+&lt;/default&gt;</span>
+<p>Setting dampratio to 1.0 makes the contact critically damped — it absorbs energy on impact without bouncing.</p>
+
+<p><b>Fix 2 — If still bouncy, decrease time constant:</b></p>
+<p>A smaller timeconst (e.g., 0.005) makes the contact stiffer. The foot penetrates less and resolves faster. But beware: too-stiff contacts with an explicit integrator can cause instability. If you go below <code>5 x timestep</code>, switch to <code>implicitfast</code> integrator.</p>
+
+<p><b>Fix 3 — Check solimp if the foot sinks:</b></p>
+<p>If after fixing the bounce the feet sink into the ground, increase <code>solimp[0]</code> toward 0.95-0.99. This tells the solver to enforce the constraint more strictly.</p>
+
+<p><b>For the SpaceData quadruped:</b> I would use <code>solref="0.01 1.0"</code> — fast, critically damped contact. With Isaac Sim the physics are handled by PhysX, but in MuJoCo you need to tune these explicitly. The feel of the contact directly affects what the RL policy learns — if contacts are bouncy in sim, the policy learns a gait that exploits the bounce, and that gait fails on real rigid ground.</p>
+
+<span class="key-point">Key insight: solref controls the physics of the contact (spring-damper behavior). solimp controls the numerics of the constraint solver (how strictly to enforce). For locomotion, you almost always want critically damped (dampratio=1.0) and high impedance (solimp[0] >= 0.9). Bouncy contacts in sim = policies that do not transfer.</span>
+
+<span class="interview-tip">🎯 Interview tip: "The contact parameters in MuJoCo are the hidden sim-to-real gap. If feet bounce in sim, the policy learns to exploit that energy return. On real ground, there is no bounce — the policy stumbles. I always set dampratio=1.0 and verify contact behavior before training."</span>`
+  },
+  {
+    q: "What is the armature parameter in MuJoCo, and why does almost every well-tuned model use it? Connect it to the actual physics of electric motors.",
+    diff: "core",
+    a: `<p><code>armature</code> adds a value to the diagonal of the joint-space inertia matrix M(q). In MuJoCo equation of motion:</p>
+<span class="formula">M(q) * q_dd + C(q,q_d) = tau + J^T * f
+
+With armature:
+[M(q) + diag(armature)] * q_dd + C(q,q_d) = tau + J^T * f</span>
+
+<p><b>The real physics behind it:</b></p>
+<p>An electric motor has a rotor that spins. The rotor has moment of inertia I_rotor. But the rotor spins faster than the joint — there is a gear ratio N between motor and joint. The effective inertia reflected to the joint side is:</p>
+<span class="formula">I_reflected = N^2 x I_rotor
+
+Example: gear ratio N = 50, rotor inertia I_rotor = 1e-5 kg*m^2
+I_reflected = 50^2 x 1e-5 = 0.025 kg*m^2
+
+This is often LARGER than the link inertia itself!</span>
+
+<p>So <code>armature</code> is not a numerical hack — it is the reflected rotor inertia that is physically present in any geared actuator. Real robots like Unitree quadrupeds have significant rotor inertia because they use high gear ratios.</p>
+
+<p><b>Why it helps numerically:</b></p>
+<p>The mass matrix M(q) can become ill-conditioned — some directions have very low inertia (e.g., a lightweight fingertip). When MuJoCo inverts M to compute accelerations (q_dd = M^-1 * (tau - C)), small diagonal values create huge accelerations from tiny forces. Adding armature increases the minimum eigenvalue of M, bounding the maximum acceleration.</p>
+
+<span class="formula">cond(M) = lambda_max / lambda_min
+
+Without armature: lambda_min might be 1e-4 -> cond(M) = 1e6 -> fragile
+With armature=0.01: lambda_min >= 0.01 -> cond(M) <= 1e4 -> stable</span>
+
+<p><b>Practical usage:</b></p>
+<p>For actuated joints, set <code>armature</code> to match the actual reflected rotor inertia from the motor datasheet. If you do not have the datasheet, 0.01-0.1 is reasonable for robot arms and quadrupeds. For RL training, it is especially important because the policy generates random large torques during exploration — without armature, these cause infinite accelerations and NaN states.</p>
+
+<p><b>When NOT to add armature:</b> Passive joints (unactuated, like a ball bouncing) should not have armature. Too much armature makes the robot sluggish. The BHEEMA bipedal model needs carefully tuned armature per joint — ankle actuators with high gear ratios get more than hip direct-drive actuators.</p>
+
+<span class="key-point">Key insight: armature = N^2 x I_rotor. It is not a regularization trick — it is the physics of geared actuators. Every motor with a gearbox reflects rotor inertia to the joint. Omitting it means your simulation is WRONG, not just unstable.</span>
+
+<span class="interview-tip">🎯 Interview tip: Connect armature to real motor physics: "I set armature to the reflected rotor inertia — gear ratio squared times rotor inertia from the motor datasheet. This makes the simulation both more physically accurate AND more numerically stable."</span>`
+  },
+  {
+    q: "You are building a MuJoCo model of the Franka Panda for a pick-and-place RL task. The gripper keeps phasing through objects instead of grasping them. Diagnose and fix this.",
+    diff: "intermediate",
+    a: `<p>Gripper-object contact failure is one of the trickiest MuJoCo modeling problems because it involves collision detection, contact generation, and actuator modeling all interacting.</p>
+
+<p><b>Diagnosis Step 1 — Missing collision geometries:</b></p>
+<p>MuJoCo uses separate geometries for visual rendering and collision detection. If the gripper fingers only have visual meshes (<code>contype="0" conaffinity="0"</code>), they will not collide with anything. You need explicit collision primitives (boxes, capsules) that approximate the finger shape.</p>
+<span class="formula">&lt;!-- Visual mesh (no collision) --&gt;
+&lt;geom type="mesh" mesh="finger" contype="0" conaffinity="0"/&gt;
+
+&lt;!-- Collision primitive (actual contact) --&gt;
+&lt;geom type="box" size="0.01 0.008 0.03" contype="1" conaffinity="1" 
+      friction="1.0 0.005 0.001"/&gt;</span>
+
+<p><b>Diagnosis Step 2 — Contype/conaffinity mismatch:</b></p>
+<p>MuJoCo uses bitwise AND between <code>contype</code> of geom A and <code>conaffinity</code> of geom B (and vice versa) to decide if they can collide. Both the finger and the object need compatible bits.</p>
+
+<p><b>Diagnosis Step 3 — Insufficient friction:</b></p>
+<p>Even if contacts happen, low friction means the object slips through under gravity. MuJoCo friction has three components: <code>friction="slide spin roll"</code>. Effective friction is the geometric mean of the two surfaces.</p>
+<span class="formula">effective_friction = sqrt(friction_A x friction_B)
+
+If finger=0.5 and object=0.5 -> effective=0.5 (might slip)
+If finger=1.5 and object=1.0 -> effective=1.22 (much better)</span>
+
+<p><b>Diagnosis Step 4 — Contact filtering from parent-child:</b></p>
+<p>MuJoCo automatically disables contacts between parent and child bodies in the kinematic tree. Check with <code>&lt;option collision="all"/&gt;</code> to disable automatic filtering.</p>
+
+<p><b>Diagnosis Step 5 — Actuator force limits:</b></p>
+<p>The gripper actuator might not be strong enough. Check <code>data.actuator_force</code> during grasping — if it maxes out and the object still slips, increase forcerange or reduce object mass.</p>
+
+<p><b>Diagnosis Step 6 — Solver iterations:</b></p>
+<p>Grasping requires resolving multiple simultaneous contacts (both fingers + object = 4+ contact points). Increase <code>niter</code> from default 100 to 200-300 for manipulation tasks.</p>
+
+<p><b>My fix for the PPO pick-and-place setup:</b></p>
+<span class="formula">&lt;option gravity="0 0 -9.81" timestep="0.001" 
+       solver="Newton" iterations="150" cone="elliptic"/&gt;
+
+Gripper fingers: box collision geoms, friction="1.5 0.005 0.001"
+Objects: friction="1.0 0.005 0.001"
+condim="4" for torsional friction (prevents rotation in grasp)</span>
+
+<span class="key-point">Key insight: Grasping in MuJoCo fails silently — no error, the object just falls through. Debugging order: (1) verify collision geoms exist, (2) check contype/conaffinity bits, (3) increase friction, (4) check actuator force limits, (5) increase solver iterations.</span>
+
+<span class="interview-tip">🎯 Interview tip: "In my PPO pick-and-place project, I spent a week debugging exactly this. The fix was adding explicit box collision geoms to the fingers, setting condim=4 for torsional friction, and using the Newton solver with 150 iterations. The policy went from 0% grasp rate to 85% overnight — it was not the RL that was failing, it was the physics."</span>`
+  },
+  {
+    q: "Explain MuJoCo integrator options: Euler, implicit, and implicitfast. When would you switch from the default, and what is the performance-stability tradeoff?",
+    diff: "core",
+    a: `<p>The integrator determines how MuJoCo advances the state from time t to t + dt. This choice directly affects stability, accuracy, and speed.</p>
+
+<p><b>Euler (semi-implicit):</b></p>
+<p>MuJoCo "Euler" is actually semi-implicit: it computes accelerations from the current state, updates velocity first, then uses the NEW velocity to update position.</p>
+<span class="formula">v(t+dt) = v(t) + dt * a(t)     velocity uses old acceleration
+q(t+dt) = q(t) + dt * v(t+dt)  position uses NEW velocity
+
+Stability: conditionally stable
+Condition: dt < 2/omega_max (highest natural frequency)
+Energy: slightly dissipative (good — prevents drift)</span>
+
+<p><b>Implicit:</b></p>
+<p>Solves a coupled system where accelerations depend on the future state. MuJoCo linearizes the dynamics and solves a linear system. Unconditionally stable for linear systems.</p>
+<span class="formula">Cost: ~2-3x more expensive than Euler (matrix factorization)
+Accuracy: still first-order, but much better stability region</span>
+
+<p><b>Implicitfast:</b></p>
+<p>A practical middle ground. Uses implicit treatment for stiff components (contacts, tendons) but skips the expensive Coriolis linearization. Almost as stable as full implicit but only ~1.3x the cost of Euler.</p>
+<span class="formula">Cost comparison (relative to Euler):
+  Euler:        1.0x  (baseline)
+  Implicitfast: 1.2-1.5x
+  Implicit:     2.0-3.0x
+
+Stability comparison:
+  Euler:        dt < 2/omega_max (can blow up)
+  Implicitfast: stable for contacts/tendons
+  Implicit:     stable for everything</span>
+
+<p><b>When to switch from Euler:</b></p>
+<p><b>1. Stiff contacts with small timestep budget:</b> Use implicitfast — you can use dt=0.002s where Euler would need dt=0.0005s, giving a 4x speedup.</p>
+<p><b>2. Tendons and muscles:</b> Tendon-driven hands (like Shadow Hand) have very stiff tendon dynamics. Implicit/implicitfast is mandatory.</p>
+<p><b>3. High gear ratios:</b> Large armature values create stiff dynamics that Euler struggles with.</p>
+<p><b>4. Massively parallel RL (MJX):</b> If even one environment becomes unstable and produces NaN, it can corrupt the entire batch. Implicitfast prevents this.</p>
+
+<p><b>For the SpaceData quadruped RL training:</b> I would use implicitfast with dt=0.002s. Euler at that timestep would occasionally explode during aggressive exploration. Implicitfast adds ~20% cost per step but eliminates all stability-related resets, actually increasing net training throughput.</p>
+
+<span class="key-point">Key insight: implicitfast is the "correct default" for RL training. The 20-30% per-step cost is always repaid by eliminating NaN episodes and allowing larger timesteps. Full implicit is for tendon-driven systems or maximum robustness.</span>
+
+<span class="interview-tip">🎯 Interview tip: "I always use implicitfast for RL training environments. The small overhead pays for itself — no more NaN episodes, no more stability resets, and I can use a 2x larger timestep than Euler."</span>`
+  },
+  {
+    q: "Your MuJoCo simulation runs at 500 Hz but your RL policy runs at 50 Hz. How do you structure the simulation loop, and what are the consequences of getting this wrong?",
+    diff: "core",
+    a: `<p>This is the substep/decimation pattern — one of the most important architectural decisions in sim-based RL, and getting it wrong silently ruins policy transfer.</p>
+
+<p><b>The structure:</b></p>
+<span class="formula">Physics timestep:  dt = 0.002s  = 500 Hz
+Policy frequency:  20ms         = 50 Hz
+Substeps per action: 20ms / 2ms = 10 substeps
+
+for each policy step:
+  obs = get_observation(data)
+  action = policy(obs)
+  for i in range(10):          # 10 physics substeps
+    data.ctrl[:] = action      # same action held for all substeps
+    mj_step(model, data)       # advance physics by 2ms
+  reward = compute_reward(data)
+  next_obs = get_observation(data)</span>
+
+<p><b>Consequence 1 — Wrong substep count changes effective dynamics:</b></p>
+<p>If you accidentally use 5 substeps instead of 10, the policy now runs at 100 Hz. The same action is held for half the time, so the robot moves less per action. A policy trained at 100 Hz will not transfer to a 50 Hz real robot — it will overshoot because it expects to correct twice as often.</p>
+
+<p><b>Consequence 2 — Action applied at wrong point:</b></p>
+<p>If you apply the action AFTER the substeps instead of BEFORE, the first substep uses the previous action and the last 9 use the new action. This creates a 1-substep delay that the policy implicitly compensates for — but the delay does not exist on the real robot.</p>
+
+<p><b>Consequence 3 — Observation timing matters:</b></p>
+<p>If you compute observations DURING the substeps (e.g., averaging sensor readings), the policy learns to use temporal information that may not be available at the same timing on the real robot. Best practice: observe AFTER all substeps complete.</p>
+
+<p><b>Consequence 4 — Reward leaking intermediate states:</b></p>
+<p>If the reward uses quantities from intermediate substeps (e.g., maximum contact force during the 10 substeps), the policy learns to optimize something it cannot directly observe.</p>
+
+<p><b>Cross-simulator consistency:</b></p>
+<span class="formula">Isaac Sim:  Physics 240 Hz, Policy 60 Hz = 4 substeps
+MuJoCo:     Physics 500 Hz, Policy 50 Hz = 10 substeps
+
+The policy frequency should match across simulators!
+If training in MuJoCo and deploying via Isaac Sim,
+keep policy at 50 Hz in both.</span>
+
+<span class="key-point">Key insight: The substep count defines the effective control bandwidth. Change it and you change what the policy learns. This is the MOST overlooked source of sim-to-real gaps — people tune reward functions for weeks when the real problem was a mismatched decimation ratio.</span>
+
+<span class="interview-tip">🎯 Interview tip: "I always explicitly document three numbers: physics timestep, policy frequency, and substep count. When debugging sim-to-real transfer, the first thing I check is whether the policy frequency matches the real control loop rate."</span>`
+  },
+  {
+    q: "You need to model a robot gripper grasping objects of varying mass and friction in MuJoCo. How do you set up domain randomization over contact parameters, and what parameters matter most?",
+    diff: "intermediate",
+    a: `<p>Contact parameter randomization is critical for manipulation policies that need to transfer to real objects. Not all parameters matter equally.</p>
+
+<p><b>Parameters ranked by sim-to-real impact:</b></p>
+
+<p><b>Tier 1 — Must randomize (80% of the gap):</b></p>
+<span class="formula">Object mass:     uniform(0.5x, 2.0x) of nominal
+Friction (slide): uniform(0.4, 1.5)
+Object size:     uniform(0.9x, 1.1x) of nominal dims</span>
+
+<p><b>Tier 2 — Should randomize:</b></p>
+<span class="formula">solref timeconst:  uniform(0.005, 0.03)  contact stiffness
+solref dampratio:  uniform(0.8, 1.2)     contact damping
+Object CoM offset: uniform(-0.01, 0.01)m real objects not uniform</span>
+<p>In my PPO pick-and-place project, randomizing CoM offset was the single biggest improvement for lifting non-symmetric objects.</p>
+
+<p><b>Tier 3 — Diminishing returns:</b></p>
+<span class="formula">Spin friction, rolling friction, density, restitution</span>
+
+<p><b>Implementation (per-episode randomization):</b></p>
+<span class="formula">def randomize_contact_params(model, rng):
+    obj_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_BODY, "object")
+    model.body_mass[obj_id] = rng.uniform(0.05, 0.2)
+    
+    obj_geom_id = mj.mj_name2id(model, mj.mjtObj.mjOBJ_GEOM, "object_geom")
+    model.geom_friction[obj_geom_id, 0] = rng.uniform(0.4, 1.5)
+    model.geom_solref[obj_geom_id, 0] = rng.uniform(0.005, 0.03)
+    
+    model.body_ipos[obj_id, :3] += rng.uniform(-0.01, 0.01, size=3)
+    
+    mj.mj_setConst(model, data)  # CRITICAL: recompute derived quantities</span>
+
+<p><b>Critical detail — mj_setConst:</b></p>
+<p>After modifying <code>model.body_mass</code> or <code>body_inertia</code>, you MUST call <code>mj_setConst(model, data)</code> to recompute the mass matrix factorization. Forgetting this is a silent bug — the model runs with stale derived quantities.</p>
+
+<p><b>Avoiding over-randomization:</b></p>
+<p>If ranges are too wide, many episodes are physically impossible. Monitor the reward distribution — if more than 10% of episodes have zero reward, the range is too wide.</p>
+
+<span class="key-point">Key insight: Randomize in priority order — mass, friction, size first. Always call mj_setConst after modifying model parameters. Monitor reward distributions to avoid over-randomization.</span>
+
+<span class="interview-tip">🎯 Interview tip: "I prioritize what to randomize by measuring sensitivity: train with each parameter randomized individually and measure variance. Mass and friction dominate — randomizing them alone gets 80% of the sim-to-real benefit."</span>`
+  },
+  {
+    q: "Compare MuJoCo constraint-based contact model to impulse-based engines like Bullet and PhysX. Why does this matter for RL training?",
+    diff: "intermediate",
+    a: `<p>This is a fundamental architectural difference that affects every policy trained in simulation.</p>
+
+<p><b>MuJoCo: Constraint-based (convex optimization):</b></p>
+<span class="formula">MuJoCo contact optimization:
+  minimize  0.5 * f^T A f + b^T f
+  subject to f >= 0  (normal forces push only)
+             |f_t| <= mu * f_n  (Coulomb friction cone)
+
+Key property: soft contacts — some penetration allowed
+Result: smooth, differentiable contact forces, no chattering</span>
+
+<p><b>Bullet/PhysX: Impulse-based (sequential impulse):</b></p>
+<span class="formula">for iteration in range(num_iters):
+    for each contact:
+      compute impulse to resolve penetration
+      apply impulse, clamp to friction cone
+
+Key property: rigid contacts — zero penetration target
+Result: can chatter (contact on/off), order-dependent</span>
+
+<p><b>Why this matters for RL:</b></p>
+
+<p><b>1. Gradient smoothness:</b> MuJoCo soft contacts produce smooth force profiles. Impulse engines produce discontinuous forces. Smooth contacts mean smoother reward landscapes, easier for PPO to optimize.</p>
+
+<p><b>2. Contact determinism:</b> MuJoCo convex solver gives the same solution regardless of contact processing order. Impulse solvers with fixed iteration counts give slightly different forces depending on ordering.</p>
+
+<p><b>3. Stacking scenarios:</b> MuJoCo handles 10 stacked boxes with consistent forces. Impulse solvers struggle with limited iterations — bottom boxes do not "know" about top ones.</p>
+
+<p><b>4. Soft contact = sim-to-real gap:</b> MuJoCo allows penetration (controlled by solimp), which is unphysical. Mitigate by setting solimp values close to 1.0.</p>
+
+<p><b>5. Speed for RL:</b> MuJoCo is 5-10x faster per-environment than PhysX on CPU. But PhysX/Isaac Sim runs thousands of environments in parallel on GPU.</p>
+
+<span class="formula">MuJoCo:  Best physics accuracy, smooth gradients, CPU-optimal
+         Use for: manipulation, precise contact, small-batch RL
+         
+Isaac Sim/PhysX: GPU-parallel, rigid contacts, massive scale
+         Use for: locomotion, large-scale RL (4096+ envs)
+         
+MJX (MuJoCo on GPU): Best of both — MuJoCo physics on GPU
+         Use for: when you need both scale AND contact quality</span>
+
+<span class="key-point">Key insight: MuJoCo constraint-based solver produces smooth, deterministic contact forces ideal for RL training. Impulse engines are faster at scale but produce noisier contacts. For manipulation, MuJoCo wins. For locomotion at massive scale, Isaac Sim GPU parallelism wins. MJX bridges both.</span>
+
+<span class="interview-tip">🎯 Interview tip: "At SpaceData I trained the quadruped in Isaac Sim for GPU parallelism — locomotion needs scale more than contact precision. But for the pick-and-place task I would choose MuJoCo because grasping requires reliable multi-finger contact. MJX gives me both."</span>`
+  },
+  {
+    q: "What is MJX and how does it differ from standard MuJoCo? Your team wants to train a quadruped policy in 10 minutes instead of 10 hours — walk through the architecture.",
+    diff: "intermediate",
+    a: `<p>MJX is MuJoCo JAX backend — it reimplements MuJoCo core physics in JAX, enabling GPU/TPU execution with full XLA compilation and automatic vectorization.</p>
+
+<p><b>Standard MuJoCo vs MJX:</b></p>
+<span class="formula">Standard MuJoCo (C library):
+  - Single-threaded CPU, highly optimized C/AVX
+  - ~1M steps/sec for a quadruped on one core
+  - 4096 envs = 4096 serial loops or multiprocessing
+
+MJX (JAX backend):
+  - GPU/TPU-parallelized, XLA-compiled
+  - Single env ~5x slower than C MuJoCo
+  - But 4096 envs batched = ~100x total throughput via vmap
+  - ~100M+ steps/sec on one A100</span>
+
+<p><b>Architecture for 10-minute training:</b></p>
+
+<p><b>1. Model conversion:</b></p>
+<span class="formula">import mujoco
+from mujoco import mjx
+
+mj_model = mujoco.MjModel.from_xml_path("quadruped.xml")
+mjx_model = mjx.put_model(mj_model)  # convert to JAX/GPU</span>
+<p>Same MJCF XML. MJX replaces the C physics pipeline with JAX operations.</p>
+
+<p><b>2. Vectorized environments via vmap:</b></p>
+<span class="formula">def env_step(mjx_model, mjx_data, action):
+    mjx_data = mjx_data.replace(ctrl=action)
+    mjx_data = mjx.step(mjx_model, mjx_data)
+    return mjx_data, get_obs(mjx_data), compute_reward(mjx_data)
+
+# Vectorize across 4096 envs — ONE function call
+batched_step = jax.vmap(env_step, in_axes=(None, 0, 0))
+# All 4096 envs step simultaneously on GPU</span>
+
+<p><b>3. JIT compilation:</b></p>
+<span class="formula">batched_step_jit = jax.jit(batched_step)
+# First call: compiles XLA graph (~30 sec)
+# Subsequent calls: ~0.5ms for 4096 envs x 10 substeps</span>
+
+<p><b>4. End-to-end differentiable (bonus):</b> Because MJX is pure JAX, you can compute gradients through the physics. This enables analytic policy gradients through dynamics, though contact discontinuities make this noisy in practice.</p>
+
+<p><b>What MJX does NOT support (yet):</b> Not all MuJoCo features are in MJX: tendon dynamics, some actuator types, mesh collisions (only primitive-primitive). MJX only supports PGS solver, not Newton. Check compatibility before converting.</p>
+
+<p><b>The 10-hour to 10-minute math:</b></p>
+<span class="formula">Standard MuJoCo + PPO:
+  8 parallel envs on CPU = 8K steps/sec  
+  1B steps = ~35 hours. With 32 cores: ~1 hour
+
+MJX + PPO on A100:
+  4096 envs batched via vmap = 100M steps/sec
+  1B steps = 10 sec physics + PPO overhead = ~10-15 min</span>
+
+<span class="key-point">Key insight: MJX does not make MuJoCo faster per-environment — it makes it massively parallel. A single env on GPU is slower than C on CPU. But 4096 environments batched via vmap run as fast as one, giving 100-1000x throughput.</span>
+
+<span class="interview-tip">🎯 Interview tip: "At SpaceData we used Isaac Sim for GPU-parallel training. MJX gives the same parallelism with MuJoCo physics quality. I would use MJX for the quadruped — same 4096-env scale as Isaac Sim, but with MuJoCo constraint-based contacts which produce smoother gradients for PPO."</span>`
+  },
+  {
+    q: "Your MuJoCo simulation is deterministic on one machine but gives different results on a teammate machine. Why? How do you guarantee reproducibility for benchmarking RL policies?",
+    diff: "intermediate",
+    a: `<p>MuJoCo itself is deterministic — given identical inputs, mj_step produces identical outputs. The non-determinism comes from everything around it.</p>
+
+<p><b>Source 1 — Floating-point non-associativity:</b></p>
+<p>IEEE 754 floating-point addition is NOT associative: <code>(a + b) + c != a + (b + c)</code>. Different CPUs, compilers, or optimization levels can reorder operations, producing bitwise-different results.</p>
+
+<p><b>Source 2 — Different MuJoCo versions:</b></p>
+<p>Even patch versions can change contact sorting or solver implementation. mujoco 3.1.0 and 3.1.1 might produce different contact orderings.</p>
+
+<p><b>Source 3 — BLAS/LAPACK implementations:</b></p>
+<p>Different BLAS libraries (OpenBLAS, MKL, Apple Accelerate) use different algorithms for the same operations. Matrix multiplication order differs, producing bitwise-different results.</p>
+
+<p><b>Source 4 — Random seed in RL:</b></p>
+<p>MuJoCo physics is deterministic. Randomness comes from: initial state sampling, domain randomization, exploration noise, mini-batch shuffling. Seeds must match exactly.</p>
+
+<p><b>Source 5 — NumPy version differences:</b></p>
+<p>NumPy random number generator changed between versions. <code>np.random.default_rng(seed=42)</code> gives different sequences in NumPy 1.x vs 2.x.</p>
+
+<p><b>Guaranteeing reproducibility:</b></p>
+<span class="formula">Reproducibility checklist:
+1. Pin exact versions: mujoco==3.1.6, numpy==1.26.4, jax==0.4.28
+2. Use Docker containers with exact base image
+3. Set ALL random seeds:
+   np.random.seed(42), torch.manual_seed(42), env.reset(seed=42)
+4. Disable non-deterministic CUDA ops:
+   torch.use_deterministic_algorithms(True)
+5. Save model XML (not just checkpoint)
+6. Record: OS, CPU model, GPU model, driver version</span>
+
+<p><b>For RL benchmarking:</b> Do not compare single runs. Run 5-10 seeds and report mean +/- std. Two policies are "different" only if confidence intervals do not overlap. Single seed comparison is meaningless.</p>
+
+<p><b>The MJX/JAX complication:</b> JAX on GPU uses XLA compilation, which may fuse operations differently on different GPU architectures (A100 vs V100). MJX is deterministic on the SAME hardware but NOT across hardware.</p>
+
+<span class="key-point">Key insight: MuJoCo is deterministic — the non-determinism is in the ecosystem. Pin everything: library versions, random seeds, hardware. For benchmarking, always use multiple seeds and statistical tests.</span>
+
+<span class="interview-tip">🎯 Interview tip: "I use Docker containers with pinned dependencies. But determinism is not the goal — statistical rigor is. I always report 5-seed mean +/- std, and only claim Algorithm A beats B if a Welch t-test gives p less than 0.05."</span>`
+  },
+  {
+    q: "Design a MuJoCo environment for training a bipedal humanoid to walk. What is in the MJCF, the observation space, the reward function, and the reset logic? Connect this to BHEEMA.",
+    diff: "advanced",
+    a: `<p>This is a full environment design question — combining MuJoCo modeling, RL engineering, and biomechanics. I will structure it as I would build the BHEEMA training environment.</p>
+
+<p><b>1. MJCF Model Design:</b></p>
+<span class="formula">&lt;mujoco model="bheema_bipedal"&gt;
+  &lt;option timestep="0.002" solver="Newton" iterations="100" 
+         integrator="implicitfast" gravity="0 0 -9.81"/&gt;
+  &lt;default&gt;
+    &lt;joint armature="0.01" damping="0.5" limited="true"/&gt;
+    &lt;geom friction="1.0 0.005 0.001" condim="3" 
+          solref="0.01 1" solimp="0.9 0.95 0.001"/&gt;
+  &lt;/default&gt;
+  &lt;worldbody&gt;
+    &lt;geom type="plane" size="50 50 0.1"/&gt;
+    &lt;body name="torso" pos="0 0 0.95"&gt;
+      &lt;freejoint name="root"/&gt;  &lt;!-- 7 DoF: 3 pos + 4 quat --&gt;
+    &lt;/body&gt;
+  &lt;/worldbody&gt;
+  &lt;actuator&gt;
+    &lt;position joint="hip_pitch_L" kp="200" ctrlrange="-1.5 1.5"/&gt;
+  &lt;/actuator&gt;
+&lt;/mujoco&gt;</span>
+
+<p><b>Key modeling decisions:</b> Freejoint gives 6-DoF floating base. Position actuators — policy outputs target angles, not raw torques. <code>implicitfast</code> for stability during foot impacts.</p>
+
+<p><b>2. Observation Space (~68 dims):</b></p>
+<span class="formula">Base orientation (quaternion):           4
+Base angular velocity (body frame):      3
+Base linear velocity (body frame):       3
+Joint positions (relative to nominal):   12
+Joint velocities:                        12
+Previous action:                         12
+Sin/cos of gait phase:                   2
+
+NOT included:
+  - Absolute position (x,y) -> would overfit to location
+  - Contact booleans -> too noisy</span>
+
+<p><b>Why these choices:</b> Base velocity in body frame makes policy heading-invariant. Previous action enables learning smooth control. Gait phase clock gives a periodic reference — without it, discovering periodicity takes 10x more training.</p>
+
+<p><b>3. Reward Function:</b></p>
+<span class="formula">reward = (
+    1.0 * exp(-4.0 * (v_x - v_target)^2)   # velocity tracking
+    + 0.5                                     # survival bonus
+    - 0.01 * ||torques||^2                    # energy efficiency
+    - 0.05 * ||action - prev_action||^2       # smoothness
+    - 0.5  * ||v_y||^2                        # no lateral drift
+    - 0.5  * ||omega_z||^2                    # no yaw oscillation
+    - 2.0  * (base_height < 0.5)              # do not fall
+    - 0.1  * ||orientation_error||^2          # keep upright
+)
+
+Termination: base_height < 0.3m, |roll| > 1.0 rad, 1000 steps max</span>
+
+<p><b>Critical:</b> Velocity uses <code>exp(-4(v-v*)^2)</code> not raw <code>v_x</code> — peaked reward at target, not "go as fast as possible." All regularization terms are much smaller than primary term.</p>
+
+<p><b>4. Reset Logic:</b></p>
+<span class="formula">def reset(env, rng):
+    data.qpos[:] = model.key_qpos[0]     # standing keyframe
+    data.qpos[2] += rng.uniform(-0.02, 0.02)    # height noise
+    data.qpos[3:7] += 0.05 * rng.randn(4)       # orientation noise
+    data.qpos[3:7] /= norm(data.qpos[3:7])      # normalize quat
+    data.qpos[7:] += 0.1 * rng.randn(njoints)   # joint noise
+    
+    randomize_friction(model, rng)    # ground friction
+    randomize_mass(model, rng)        # body masses +/-20%
+    mj_setConst(model, data)
+    v_target = rng.uniform(0.3, 1.5)  # command velocity</span>
+
+<p><b>Connecting to BHEEMA:</b> BHEEMA uses centroidal MPC + WBC, not end-to-end RL. But the MuJoCo model is the same. This RL environment could train a policy that replaces or augments the MPC for reactive balance recovery.</p>
+
+<span class="key-point">Key insight: The environment design is more important than the RL algorithm. Observation space determines what the policy CAN learn. Reward determines what it WILL learn. Reset determines the initial state distribution. Getting any one wrong means the best algorithm will not produce a walking robot.</span>
+
+<span class="interview-tip">🎯 Interview tip: Walk through all four components: "MJCF with appropriate contacts, observation with body-frame velocities and gait phase clock, multi-term reward with exp-quadratic tracking, reset with domain randomization."</span>`
+  },
+  {
+    q: "You have a trained MuJoCo policy that walks perfectly in sim. On the real robot, it stumbles after 3 steps. Walk through the systematic sim-to-real debugging process specific to MuJoCo.",
+    diff: "advanced",
+    a: `<p>Three-step-then-stumble is a classic symptom: the policy CAN initiate a gait (kinematics roughly right), but accumulated dynamics error causes it to lose balance. This points to dynamics mismatch, not kinematic mismatch.</p>
+
+<p><b>Layer 1 — Actuation model mismatch:</b></p>
+<span class="formula">MuJoCo position actuator: tau = kp * (q_target - q) - kd * q_dot
+  - Applies INSTANTLY at the physics timestep
+  - No communication delay, no motor bandwidth limit
+
+Real robot:
+  - Communication delay: ~1-5ms
+  - Motor bandwidth: ~50-200 Hz
+  - Joint PD runs on motor controller</span>
+<p><b>Fix:</b> Add action delay buffer: <code>data.ctrl = action_buffer[t - delay_steps]</code>. Start with 1-2 steps (~2-4ms). Add first-order actuator filter: <code>ctrl_actual = alpha * ctrl_cmd + (1-alpha) * ctrl_prev</code>.</p>
+
+<p><b>Layer 2 — Mass/inertia mismatch:</b></p>
+<p>Real robots have cables, electronics, non-uniform mass. The torso might be 15% heavier than modeled. Each step, the controller undercompensates for the real CoM.</p>
+<p><b>Fix:</b> Weigh each link. Update <code>&lt;inertial&gt;</code> elements. Domain randomize mass +/-20% and CoM position +/-2cm.</p>
+
+<p><b>Layer 3 — Ground contact mismatch:</b></p>
+<p>MuJoCo soft contacts allow penetration; real ground does not. If the policy learned to push into the ground for stability, on real rigid ground the foot bounces instead.</p>
+<p><b>Fix:</b> Set solimp high (0.95+). Randomize ground friction: uniform(0.4, 1.2).</p>
+
+<p><b>Layer 4 — Observation mismatch:</b></p>
+<span class="formula">MuJoCo observations (perfect):
+  Base velocity: exact from data.qvel[:3]
+  Orientation: exact quaternion from data.qpos[3:7]
+
+Real robot (noisy, delayed):
+  Base velocity: from EKF (noisy, ~10ms latency, drift)
+  Orientation: from IMU (good roll/pitch, yaw drifts)</span>
+<p><b>Fix:</b> Add observation noise matching real sensors. Use the same state estimator in sim as on real robot. Add 1-step observation delay.</p>
+
+<p><b>Layer 5 — Timing mismatch:</b></p>
+<p>If real control loop runs at 48 Hz instead of 50 Hz, the policy holds each action 4% longer. Over 3 steps this compounds significantly.</p>
+<p><b>Fix:</b> Measure actual control rate. Randomize control frequency +/-5% during training.</p>
+
+<p><b>The systematic process:</b></p>
+<span class="formula">1. Log real robot data: joint pos/vel, IMU, commands
+2. Replay SAME commands in MuJoCo open-loop
+3. Compare trajectories — where do they diverge?
+   Diverges at contacts -> contact model issue
+   Diverges at joint tracking -> actuation issue
+   Diverges at base estimation -> observation issue
+4. Fix the LARGEST divergence first
+5. Retrain with fix, repeat</span>
+
+<span class="key-point">Key insight: "Stumbles after 3 steps" means accumulated dynamics error. The fix is usually a combination of: action delay, observation noise, mass correction, and contact stiffening. Fix in order of impact — actuation delay is almost always biggest.</span>
+
+<span class="interview-tip">🎯 Interview tip: "My first sim-to-real debugging step is always open-loop replay: send the same commands to both sim and real, log trajectories, and diff them. This immediately tells me whether the gap is in actuation, contacts, or estimation."</span>`
+  },
+  {
+    q: "Explain MuJoCo position, velocity, and torque actuator types. Your RL policy outputs joint position targets — what is actually happening under the hood, and what are the failure modes?",
+    diff: "core",
+    a: `<p>MuJoCo actuator system is more powerful than most people realize — position, velocity, and torque actuators are all special cases of the same general model.</p>
+
+<p><b>The general actuator model:</b></p>
+<span class="formula">tau = gain * (ctrl - bias)
+
+Position: gain = kp,  bias = kp*q + kd*q_dot
+  -> tau = kp * (ctrl - q) - kd * q_dot
+           
+Velocity: gain = kv,  bias = kv*q_dot
+  -> tau = kv * (ctrl - q_dot)
+           
+Torque:   gain = 1,   bias = 0
+  -> tau = ctrl (direct torque)</span>
+
+<p><b>Position actuator in detail:</b></p>
+<p>When the RL policy outputs <code>action[i] = 0.5</code> for a position actuator with <code>kp=100</code>, MuJoCo computes: <code>tau = 100 * (0.5 - q_current) - kd * q_dot</code>. The policy commands a target angle; the internal PD controller generates the torque. This happens INSIDE mj_step.</p>
+
+<p><b>Why this matters for RL:</b></p>
+<p><b>1. Action space is target angles:</b> Much easier to learn than raw torques because PD handles the fast inner loop. The policy only learns WHERE to go, not HOW to generate forces.</p>
+
+<p><b>2. kp/kd define effective dynamics:</b></p>
+<span class="formula">High kp (stiff): Tight tracking, precise control
+  But high forces, can damage hardware, sim-to-real gap if gains differ
+
+Low kp (compliant): Loose tracking, must overshoot targets
+  More robust to perturbations, harder to learn precision</span>
+
+<p><b>Failure mode 1 — Gain mismatch:</b></p>
+<p>If MuJoCo uses kp=200 but the real robot uses kp=100, the sim policy outputs small corrections expecting tight tracking. On the real robot, these produce half the expected motion — systematic under-correction, drift, falling.</p>
+
+<p><b>Failure mode 2 — Missing damping:</b></p>
+<p>If kd=0, the controller overshoots and oscillates. Always include damping: <code>kd = 2 * sqrt(kp * m)</code> for critical damping.</p>
+
+<p><b>Failure mode 3 — Torque limits ignored:</b></p>
+<p>If the actuator has <code>forcerange="-50 50"</code> but the policy relies on saturated torques, it learned a less capable strategy. Monitor <code>data.actuator_force</code> during training.</p>
+
+<p><b>Failure mode 4 — Control delay not modeled:</b></p>
+<p>Position actuator applies torque INSTANTLY. Real actuators have communication delay + motor time constant. Add a delay buffer:</p>
+<span class="formula">self.action_buffer = deque(maxlen=3)  # 3-step delay
+def step(self, action):
+    self.action_buffer.append(action)
+    data.ctrl[:] = self.action_buffer[0]  # delayed action</span>
+
+<span class="key-point">Key insight: Position actuators implement a PD controller inside the physics engine. The policy outputs target angles, not torques. This makes learning easier but introduces gain mismatch as a sim-to-real gap. Always match kp/kd to the real robot and add action delay.</span>
+
+<span class="interview-tip">🎯 Interview tip: "I always use position actuators for locomotion RL — the PD handles fast dynamics so the policy only learns coordination. But I match kp/kd to the real robot controller and add action delay. These two things close most of the actuation sim-to-real gap."</span>`
+  },
+  {
+    q: "Your MuJoCo model has a sensor that reads foot contact force, but it reads zero even when the foot is visually on the ground. What is going wrong?",
+    diff: "core",
+    a: `<p>This is a classic MuJoCo gotcha. Several possible causes ordered by likelihood:</p>
+
+<p><b>Cause 1 — Stale sensor data (most common):</b></p>
+<p>MuJoCo sensors are only computed when you call <code>mj_forward</code> or <code>mj_step</code>. If you read <code>data.sensordata</code> after modifying <code>data.qpos</code> but BEFORE calling mj_forward, sensor values correspond to the previous state.</p>
+<span class="formula"># WRONG — stale sensor data
+data.qpos[:] = new_position
+force = data.sensordata[sensor_id]  # still from previous state!
+
+# CORRECT — refresh first
+data.qpos[:] = new_position
+mj.mj_forward(model, data)  # recomputes sensors
+force = data.sensordata[sensor_id]  # now current</span>
+
+<p><b>Cause 2 — Sensor attached to wrong body/site:</b></p>
+<p>Touch sensors report force on the body containing the site. If the site is on the shin but contacts are on a separate foot child body, the sensor misses them.</p>
+<span class="formula">&lt;!-- WRONG: site on shin, contacts on foot body --&gt;
+&lt;body name="shin"&gt;
+  &lt;site name="foot_sensor" pos="0 0 -0.3"/&gt;
+  &lt;body name="foot"&gt;
+    &lt;geom type="sphere" size="0.05"/&gt;
+  &lt;/body&gt;
+&lt;/body&gt;
+
+&lt;!-- CORRECT: site on same body as contact geom --&gt;
+&lt;body name="foot"&gt;
+  &lt;site name="foot_sensor"/&gt;
+  &lt;geom type="sphere" size="0.05"/&gt;
+&lt;/body&gt;</span>
+
+<p><b>Cause 3 — Wrong sensor type:</b></p>
+<p><code>&lt;touch&gt;</code> reports normal force on a body. <code>&lt;force&gt;</code> reports constraint forces at a joint. For foot contact force, use <code>&lt;touch site="foot_sensor"/&gt;</code>.</p>
+
+<p><b>Cause 4 — Contact filtering (contype/conaffinity):</b></p>
+<p>If the foot geom has <code>contype="0"</code>, no contact is generated. The foot visually sits on the ground (rendering ignores contact filtering), but the physics has no contact.</p>
+
+<p><b>Cause 5 — Zero penetration:</b></p>
+<p>If the foot is kinematically placed exactly on the surface with zero velocity, there is zero penetration and hence zero contact force. Let the system settle for a few steps.</p>
+
+<p><b>Quick diagnostic:</b></p>
+<span class="formula">print(f"Active contacts: {data.ncon}")
+for i in range(data.ncon):
+    c = data.contact[i]
+    g1 = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, c.geom1)
+    g2 = mj.mj_id2name(model, mj.mjtObj.mjOBJ_GEOM, c.geom2)
+    print(f"Contact {i}: {g1} <-> {g2}, dist={c.dist:.6f}")
+
+# ncon > 0 but sensor=0 -> sensor attachment issue
+# ncon == 0 -> contact filtering issue</span>
+
+<span class="key-point">Key insight: The visual renderer and physics engine use different information. A geom can be visible on the ground without generating contact (contype/conaffinity), and sensors can exist without being current (missing mj_forward). Verify with data.ncon first.</span>
+
+<span class="interview-tip">🎯 Interview tip: "First check data.ncon — any contacts at all? If yes but sensor reads zero, sensor is on the wrong body. If no contacts, it is contype/conaffinity mismatch. If both exist, probably forgot mj_forward."</span>`
+  },
+  {
+    q: "How does MuJoCo handle equality constraints (welds, tendons, connect)? You need to model a parallel-jaw gripper where both fingers close symmetrically — compare the approaches.",
+    diff: "intermediate",
+    a: `<p>MuJoCo equality constraints enforce kinematic relationships between bodies or joints, solved as part of the same constraint optimization as contacts — soft by default.</p>
+
+<p><b>Joint equality (recommended for symmetric gripper):</b></p>
+<span class="formula">&lt;equality&gt;
+  &lt;joint joint1="finger_left" joint2="finger_right" 
+         polycoef="0 -1 0 0 0"/&gt;
+  &lt;!-- q_right = 0 + (-1)*q_left: symmetric closure --&gt;
+&lt;/equality&gt;</span>
+<p>Directly constrains <code>q_right = -q_left</code>. Only one actuator needed. Clean, efficient, exactly represents a single-motor gripper with a mirroring mechanism.</p>
+
+<p><b>Tendon coupling (alternative):</b></p>
+<span class="formula">&lt;tendon&gt;
+  &lt;fixed name="coupling"&gt;
+    &lt;joint joint="finger_left" coef="1"/&gt;
+    &lt;joint joint="finger_right" coef="1"/&gt;
+  &lt;/fixed&gt;
+&lt;/tendon&gt;
+&lt;equality&gt;
+  &lt;tendon tendon1="coupling"/&gt;
+  &lt;!-- 1*q_left + 1*q_right = 0 --&gt;
+&lt;/equality&gt;</span>
+<p>More general — can couple N joints with arbitrary coefficients. Overkill for a simple 1:1 coupling.</p>
+
+<p><b>Two actuators with mirrored commands (common mistake):</b></p>
+<span class="formula"># In RL environment:
+data.ctrl[left] = action
+data.ctrl[right] = -action</span>
+<p>No equality constraint — fingers are independently actuated. External forces can push them asymmetrically. A real parallel-jaw gripper with mechanical linkage CANNOT open asymmetrically. The equality constraint correctly prevents this.</p>
+
+<p><b>Weld constraint:</b></p>
+<p>Locks two bodies with zero relative motion (6-DoF). Useful for attaching grasped objects to the gripper or fixing a camera to a body.</p>
+
+<p><b>Connect constraint:</b></p>
+<p>Only constrains position (3-DoF), rotation is free. Like a ball joint between two bodies. Useful for closed-loop kinematic chains.</p>
+
+<p><b>Softness of equality constraints:</b></p>
+<p>Like contacts, equality constraints are soft. For a mechanical linkage that should be rigid:</p>
+<span class="formula">&lt;joint joint1="finger_left" joint2="finger_right" 
+       polycoef="0 -1 0 0 0"
+       solref="0.005 1" solimp="0.95 0.99 0.001"/&gt;</span>
+
+<p><b>For the PPO pick-and-place Franka Panda:</b> The Panda gripper has mechanically coupled prismatic fingers. Joint equality with one actuator halves the action space, making it easier for RL to learn grasping.</p>
+
+<span class="key-point">Key insight: For a symmetric gripper, joint equality is the cleanest solution: one actuator, one constraint, correct physics. Using two independent actuators with mirrored commands is a common modeling error that allows unphysical asymmetric behavior.</span>
+
+<span class="interview-tip">🎯 Interview tip: "I use a joint equality constraint with polycoef=[0,-1,0,0,0] so one joint mirrors the other. This matches the real gripper mechanical coupling. The RL policy only needs one action dimension for the gripper — simpler to learn."</span>`
+  },
+  {
+    q: "You are building a MuJoCo env where a robot arm pushes objects on a table. Objects slide too easily — they move when the arm barely touches them. How do you diagnose and fix this?",
+    diff: "intermediate",
+    a: `<p>Objects sliding too easily is a contact dynamics problem. Here is the systematic diagnosis.</p>
+
+<p><b>Step 1 — Check friction values:</b></p>
+<span class="formula">arm_friction = model.geom_friction[arm_geom_id]
+obj_friction = model.geom_friction[obj_geom_id]
+
+effective = sqrt(arm_friction * obj_friction)
+# If arm=0.5, object=0.5 -> effective=0.5 (too low!)
+# Need: arm=1.5, object=1.0 -> effective=1.22</span>
+<p>Effective friction is geometric mean of both surfaces. Both must be >= 1.0 for manipulation.</p>
+
+<p><b>Step 2 — Check object mass:</b></p>
+<p>A 0.01 kg box accelerates at 100 m/s^2 from a 1N force. Real small objects weigh 0.1-0.5 kg.</p>
+
+<p><b>Step 3 — Check condim (critical!):</b></p>
+<span class="formula">condim=1: frictionless! Only normal force. Objects slide freely.
+condim=3: sliding friction (normal + 2 tangential). Standard.
+condim=4: + torsional friction. Objects resist rotation.
+condim=6: + rolling friction. Full model.
+
+For manipulation: condim=4 minimum</span>
+<p>If condim=1 (accidental default inheritance), there is literally zero friction regardless of friction parameter values.</p>
+
+<p><b>Step 4 — Contact stiffness (solref):</b></p>
+<p>Large solref timeconst means slow force buildup — the arm pushes into the object before friction engages. Decrease timeconst.</p>
+
+<p><b>Step 5 — Table friction:</b></p>
+<p>Do not forget object-table friction! Low table friction lets objects slide on the surface.</p>
+
+<p><b>Step 6 — Solver iterations:</b></p>
+<p>Friction is solved iteratively. Too few iterations means friction cone not fully enforced. Increase from 100 to 200.</p>
+
+<p><b>Step 7 — Cone type:</b></p>
+<span class="formula">&lt;option cone="elliptic"/&gt;  more accurate friction cone
+vs
+&lt;option cone="pyramidal"/&gt; default, faster, approximates with pyramid
+Pyramidal can allow motion between pyramid faces = apparent low friction</span>
+
+<p><b>Complete fix:</b></p>
+<span class="formula">&lt;option solver="Newton" iterations="150" cone="elliptic"/&gt;
+&lt;default&gt;
+  &lt;geom friction="1.0 0.005 0.001" condim="4"
+        solref="0.01 1" solimp="0.9 0.95 0.001"/&gt;
+&lt;/default&gt;
+Object mass >= 0.05 kg. Arm finger friction >= 1.5.</span>
+
+<span class="key-point">Key insight: "Too slippery" is almost always condim too low (no friction enabled), friction values too small (check both surfaces), or too-few solver iterations. Check condim FIRST — condim=1 means zero friction regardless of parameter values.</span>
+
+<span class="interview-tip">🎯 Interview tip: "First check condim — if it is 1, there is literally zero friction. Then verify both surfaces have friction >= 1.0. Then check object mass. These three fix 90% of sliding issues in MuJoCo manipulation."</span>`
+  },
+  {
+    q: "Explain the difference between mj_step, mj_forward, mj_inverse, and mj_step1/mj_step2. When would you use each in an RL pipeline?",
+    diff: "intermediate",
+    a: `<p>These functions form MuJoCo computational pipeline. Understanding their decomposition is essential for efficient RL environments.</p>
+
+<p><b>mj_forward(model, data):</b></p>
+<p>Computes everything EXCEPT integration. Given state (qpos, qvel) and controls (ctrl), computes: kinematics, dynamics, sensor data, contact forces. Does NOT update qpos or qvel.</p>
+
+<p><b>mj_step(model, data):</b></p>
+<p>Full simulation step = mj_step1 + mj_step2. Calls forward dynamics, then integrates to advance state by one timestep.</p>
+
+<p><b>mj_step1/mj_step2 split:</b></p>
+<span class="formula">mj_step1: forward dynamics -> computes accelerations, sensors
+  [USER CODE: read sensors, compute control, set data.ctrl]
+mj_step2: integration -> advances qpos, qvel by dt
+
+With mj_step:
+  data.ctrl = action        # set BEFORE step
+  mj_step(model, data)      # forward + integrate
+  obs = get_obs(data)       # read AFTER step
+
+With mj_step1/step2:
+  mj_step1(model, data)     # compute sensors BEFORE control
+  action = policy(obs)       # read sensors, compute
+  data.ctrl = action         # apply
+  mj_step2(model, data)     # integrate</span>
+<p>The split matches real robot timing: sense, then compute, then actuate.</p>
+
+<p><b>mj_inverse(model, data):</b></p>
+<p>Inverse dynamics: given state AND desired acceleration (qacc), compute required torques: <code>tau = M(q) * qacc + C(q, q_dot)</code>.</p>
+<span class="formula">Use cases:
+1. Computed torque control: given desired q_dd, find tau
+2. Gravity compensation: set qacc=0, get tau = gravity torques
+3. System identification: given measured q, q_d, q_dd -> infer tau
+4. Trajectory optimization: verify dynamic feasibility</span>
+
+<p><b>When to use each in RL:</b></p>
+<p><b>mj_step (99% of RL):</b> Standard training loop. Simple and correct.</p>
+<p><b>mj_step1/step2 (timing-sensitive):</b> When observation must be computed BEFORE control in the same timestep, matching real robot timing.</p>
+<p><b>mj_forward (after reset):</b> After setting qpos for episode reset, call mj_forward to update all derived quantities before reading the first observation. Without this, first observation has stale data.</p>
+<p><b>mj_inverse (model-based RL / hybrid):</b> In BHEEMA centroidal MPC + WBC, mj_inverse computes feedforward torques from the QP solver desired accelerations.</p>
+
+<span class="key-point">Key insight: mj_step = mj_step1 + mj_step2. The split matters for sensor-actuator timing. Always call mj_forward after episode reset to avoid stale sensor data in the first observation.</span>
+
+<span class="interview-tip">🎯 Interview tip: "I use mj_step for standard RL, but I am aware of the timing subtlety. For deployment validation, I switch to mj_step1/step2 to match the real robot sense-compute-act cycle. And I always call mj_forward after reset."</span>`
+  },
+  {
+    q: "Your bipedal robot feet clip through the ground during fast locomotion. Contacts exist but penetration is excessive. Fix without reducing timestep.",
+    diff: "advanced",
+    a: `<p>Excessive penetration during fast locomotion is a contact stiffness vs impact velocity problem. The foot hits faster than the contact spring can respond.</p>
+
+<p><b>Understanding the mechanism:</b></p>
+<span class="formula">Foot velocity:    ~2 m/s downward (running)
+Timestep:         0.002s
+Penetration per step: ~2 x 0.002 = 0.004m (4mm) before any force
+
+Contact stiffness from solref: omega = 1/timeconst
+Force: F = m * omega^2 * depth
+
+If timeconst=0.02 -> omega=50 -> F = 5kg * 2500 * 0.004 = 50N
+Not enough to stop 5kg at 2 m/s!</span>
+
+<p><b>Fix 1 — Stiffer contacts (decrease solref timeconst):</b></p>
+<span class="formula">&lt;geom solref="0.005 1"/&gt;   timeconst=5ms, omega=200
+                            Force 16x higher for same depth!
+Rule of thumb: timeconst <= 5 x timestep</span>
+<p>But very stiff contacts with explicit Euler can cause instability.</p>
+
+<p><b>Fix 2 — Switch to implicitfast:</b></p>
+<span class="formula">&lt;option integrator="implicitfast"/&gt;</span>
+<p>Handles stiff contacts without instability. You can safely use solref="0.003 1" where Euler would blow up. This is the cleanest solution.</p>
+
+<p><b>Fix 3 — Increase solimp (harder enforcement):</b></p>
+<span class="formula">&lt;geom solimp="0.95 0.99 0.001 0.5 2"/&gt;
+0.95 = constraint 95% enforced minimum
+0.99 = constraint 99% enforced maximum</span>
+
+<p><b>Fix 4 — Newton solver:</b></p>
+<span class="formula">&lt;option solver="Newton" iterations="50"/&gt;
+Newton converges quadratically vs PGS linearly.
+50 Newton iterations ~ 200+ PGS iterations.</span>
+
+<p><b>Fix 5 — Noslip iterations:</b></p>
+<span class="formula">&lt;option noslip_iterations="5"/&gt;
+Post-processing step correcting velocity-level constraint drift.
+3-5 iterations usually sufficient.</span>
+
+<p><b>Combined fix for BHEEMA:</b></p>
+<span class="formula">&lt;option timestep="0.002" integrator="implicitfast" 
+       solver="Newton" iterations="100" 
+       noslip_iterations="3" cone="elliptic"/&gt;
+&lt;default&gt;
+  &lt;geom solref="0.005 1" solimp="0.95 0.99 0.001 0.5 2"
+        friction="1.0 0.005 0.001" condim="4"/&gt;
+&lt;/default&gt;</span>
+
+<p><b>Why not just reduce timestep?</b> Going from 0.002 to 0.0005 costs 4x more computation. For RL with millions of episodes, that is a 4x training slowdown. The combination of implicitfast + stiffer contacts + Newton achieves the same result at the original timestep.</p>
+
+<span class="key-point">Key insight: Penetration is proportional to impact_velocity x timestep / contact_stiffness. Without reducing timestep, increase stiffness (lower solref) AND use an integrator that handles stiff contacts (implicitfast). Newton solver + noslip provides final cleanup.</span>
+
+<span class="interview-tip">🎯 Interview tip: "I use implicitfast + Newton + solref=0.005 + noslip_iterations=3. This keeps dt=0.002 for training speed while getting minimal penetration. Trying to fix penetration while staying on explicit Euler is a losing battle."</span>`
+  },
+  {
+    q: "How do you model a tendon-driven robot hand (like Shadow Hand) in MuJoCo? What makes tendon-driven actuation fundamentally different from direct-drive for RL?",
+    diff: "advanced",
+    a: `<p>Tendon-driven hands are among the most challenging MuJoCo modeling tasks because actuation topology differs fundamentally from kinematic topology.</p>
+
+<p><b>MJCF tendon model:</b></p>
+<span class="formula">&lt;tendon&gt;
+  &lt;fixed name="finger1_flexor"&gt;
+    &lt;joint joint="finger1_mcp" coef="0.01"/&gt;   moment arm 1cm
+    &lt;joint joint="finger1_pip" coef="0.008"/&gt;  moment arm 0.8cm
+    &lt;joint joint="finger1_dip" coef="0.005"/&gt;  moment arm 0.5cm
+  &lt;/fixed&gt;
+  &lt;!-- One tendon drives THREE joints simultaneously --&gt;
+&lt;/tendon&gt;
+
+&lt;actuator&gt;
+  &lt;general tendon="finger1_flexor" ctrlrange="0 1" 
+          gainprm="50 0 0" biasprm="0 -50 0"/&gt;
+&lt;/actuator&gt;</span>
+
+<p><b>What makes tendons fundamentally different:</b></p>
+
+<p><b>1. Underactuation — fewer actuators than DoFs:</b></p>
+<p>Shadow Hand has ~24 joints but ~20 tendons. Some joints are coupled — one tendon flexes MCP, PIP, and DIP simultaneously. The policy cannot independently control each joint.</p>
+
+<p><b>2. Unilateral forces — tendons only pull:</b></p>
+<span class="formula">&lt;general tendon="flexor" forcerange="0 50"/&gt;    can only pull
+&lt;general tendon="extensor" forcerange="0 50"/&gt;  can only pull
+
+Net torque = flexor_tension * r_flex - extensor_tension * r_ext
+Co-contraction: both pulling -> increases stiffness without motion</span>
+<p>Each DoF needs flexor + extensor. Policy must learn to co-contract or alternate them.</p>
+
+<p><b>3. Configuration-dependent moment arms:</b></p>
+<p>MuJoCo <code>&lt;spatial&gt;</code> tendons can model routing with wrapping sites, where effective moment arms change with joint angle.</p>
+
+<p><b>4. Tendon elasticity:</b></p>
+<span class="formula">&lt;fixed name="flexor" stiffness="100" damping="5" 
+       springlength="0.1" limited="true" range="0 0.15"/&gt;</span>
+<p>Tendons are not rigid — they stretch under load. This creates stiff dynamics requiring implicit integration.</p>
+
+<p><b>Why this is hard for RL:</b></p>
+<p><b>Challenge 1:</b> 20 coupled actuators controlling 24 joints through nonlinear moment arms. Complex inverse problem.</p>
+<p><b>Challenge 2:</b> In-hand manipulation with 20+ simultaneous contacts plus underactuation.</p>
+<p><b>Challenge 3:</b> Stiff tendon dynamics require implicit integrator — slower per step.</p>
+
+<p><b>Practical RL approaches:</b></p>
+<span class="formula">1. Start with fixed tendons (linear coupling), add complexity later
+2. Use joint-space actions with tendon Jacobian mapping:
+   action_tendon = J_tendon^T * action_joint
+3. Asymmetric actor-critic:
+   Actor: proprioception only (realistic)
+   Critic: full state including tendon tensions (privileged)</span>
+
+<span class="key-point">Key insight: Tendon-driven actuation creates underactuation, unilateral constraints, and configuration-dependent moment arms. For RL, the policy must learn an implicit inverse mapping from tendon tensions to joint configurations — much harder than direct-drive 1:1 mapping.</span>
+
+<span class="interview-tip">🎯 Interview tip: "Tendon-driven hands are the hardest actuation for RL: underactuation, pull-only forces, coupled dynamics. I start with fixed tendons for linear coupling, use implicitfast, and consider asymmetric actor-critic where the critic gets tendon tension info the actor cannot see."</span>`
+  },
+  {
+    q: "You are training a quadruped locomotion policy using MuJoCo and PPO. After 500M steps the policy vibrates in place with high reward instead of walking. What went wrong and how do you fix it?",
+    diff: "advanced",
+    a: `<p>This is a reward hacking / local optimum problem — the policy discovered that vibrating in place satisfies the reward function better (or as well as) actually walking. This is one of the most common RL pathologies for locomotion.</p>
+
+<p><b>Diagnosing why vibration gives high reward:</b></p>
+
+<p><b>Suspect 1 — Velocity reward without direction:</b></p>
+<span class="formula"># BAD: rewards speed in any direction
+reward = ||v||   # vibrating at high frequency gives high ||v||!
+
+# The robot oscillates forward-backward at 50Hz:
+# v = 2.0 * sin(2*pi*50*t), ||v|| averages to ~1.27 m/s
+# This "looks fast" to the reward but goes nowhere</span>
+<p><b>Fix:</b> Use forward velocity only: <code>reward = v_x</code>. Or better, track a target: <code>exp(-4*(v_x - v_target)^2)</code>.</p>
+
+<p><b>Suspect 2 — Survival bonus dominates:</b></p>
+<span class="formula"># If survival_bonus = 5.0 and velocity_reward ~ 1.0:
+# Standing still: reward = 5.0 per step (just survival)
+# Walking: reward = 5.0 + 1.0 = 6.0 (but might fall -> 0)
+# Policy learns: "standing is safer than walking"</span>
+<p><b>Fix:</b> Reduce survival bonus to 0.2-0.5 so velocity dominates. The policy must walk to get meaningful reward.</p>
+
+<p><b>Suspect 3 — Missing smoothness penalty:</b></p>
+<p>Without action smoothness penalty, the policy can oscillate actuators at maximum frequency. Each oscillation moves the robot slightly, generating velocity reward, but the net displacement is zero.</p>
+<span class="formula"># Add action rate penalty
+penalty = 0.05 * ||action_t - action_{t-1}||^2
+
+# This penalizes high-frequency oscillation
+# Vibrating at 50Hz: delta_action per step is HUGE -> large penalty
+# Smooth walking: delta_action per step is small -> small penalty</span>
+
+<p><b>Suspect 4 — Exploiting contact dynamics:</b></p>
+<p>With bouncy contacts (solref dampratio less than 1), the robot can oscillate feet against the ground and extract energy from the contact spring. The policy essentially uses the ground as a trampoline. This is a physics exploit — the vibration creates real forward velocity by bouncing asymmetrically.</p>
+<p><b>Fix:</b> Set <code>solref dampratio=1.0</code> (critically damped). No energy can be extracted from contacts.</p>
+
+<p><b>Suspect 5 — Observation aliasing:</b></p>
+<p>If the policy runs at 50 Hz but vibration happens at 25 Hz (Nyquist), the policy sees the vibration as a quasi-static phenomenon and cannot distinguish it from real walking. The observation does not contain enough temporal information to penalize oscillation.</p>
+<p><b>Fix:</b> Include action history (previous 2-3 actions) in the observation. Or include joint velocity, which makes oscillation visible.</p>
+
+<p><b>The systematic fix order:</b></p>
+<span class="formula">1. Fix reward: v_x not ||v||, reduce survival bonus
+2. Add smoothness: ||action_t - action_{t-1}||^2 penalty
+3. Add energy: ||torques||^2 penalty (vibrating wastes energy)
+4. Fix contacts: solref dampratio=1.0 (no energy extraction)
+5. Fix obs: include prev_action in observation
+6. If still vibrating: add explicit periodicity reward
+   (gait phase clock with sin/cos reference)</span>
+
+<p><b>The gait phase clock solution:</b></p>
+<span class="formula"># Add a periodic reference signal to observation
+phase = (timestep * freq) % 1.0  # 0 to 1 cycle
+obs = [..., sin(2*pi*phase), cos(2*pi*phase)]
+
+# Add reward for matching the phase
+# Left foot should be on ground when phase in [0, 0.5]
+# Right foot should be on ground when phase in [0.5, 1.0]
+gait_reward = contact_left * (phase < 0.5) + contact_right * (phase >= 0.5)</span>
+<p>The phase clock gives the policy a clear periodic reference. Without it, the policy must discover periodicity from scratch, and vibration is a degenerate periodic solution.</p>
+
+<p><b>Connection to SpaceData quadruped:</b> In Isaac Sim with PPO, we hit exactly this — the quadruped learned to vibrate because the velocity reward used magnitude not direction. Switching to <code>v_x</code> plus adding action smoothness penalty fixed it in the next training run.</p>
+
+<span class="key-point">Key insight: Vibrating-in-place means the reward function has a local optimum at high-frequency oscillation. The fix is always multi-pronged: directional velocity reward, action smoothness penalty, energy penalty, correct contact parameters, and optionally a gait phase clock. Never try to fix reward hacking with just one change.</span>
+
+<span class="interview-tip">🎯 Interview tip: "I have seen this exact failure in my SpaceData project. The policy vibrated because velocity reward used ||v|| instead of v_x, and there was no action smoothness penalty. I now always include five things: directional velocity, exp-quadratic tracking, action rate penalty, energy penalty, and a gait phase clock. This combination eliminates the vibration local optimum."</span>`
+  }
+];
+
+// ── LOCALSTORAGE HELPERS ──
+function getCompleted() { try { return JSON.parse(localStorage.getItem('roboprep_completed') || '{}'); } catch { return {}; } }
+function setCompleted(c) { localStorage.setItem('roboprep_completed', JSON.stringify(c)); }
+function getXP() { return parseInt(localStorage.getItem('roboprep_xp') || '0', 10); }
+function setXP(v) { localStorage.setItem('roboprep_xp', String(v)); }
+function getStreak() { try { return JSON.parse(localStorage.getItem('roboprep_streak') || '{"count":0,"lastDate":""}'); } catch { return {count:0,lastDate:''}; } }
+function updateStreak() { const s = getStreak(); const today = new Date().toISOString().slice(0,10); if (s.lastDate === today) return; const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10); s.count = (s.lastDate === yesterday) ? s.count + 1 : 1; s.lastDate = today; localStorage.setItem('roboprep_streak', JSON.stringify(s)); }
+
+let currentFilter = 'all'; let searchTerm = '';
+
+function refreshNav() { updateStreak(); document.getElementById('nav-xp').textContent = getXP(); document.getElementById('nav-streak').textContent = getStreak().count; const c = getCompleted(); let total = 0; for (const k in c) { if (k.startsWith(SECTION_KEY + '-') && c[k]) total++; } document.getElementById('nav-done').textContent = total; }
+function refreshProgress() { const c = getCompleted(); let done = 0; for (let i = 0; i < QUESTIONS.length; i++) { if (c[SECTION_KEY + '-' + i]) done++; } document.getElementById('prog-text').textContent = done + ' / ' + QUESTIONS.length; document.getElementById('prog-bar').style.width = (done / QUESTIONS.length * 100) + '%'; }
+
+function renderCards() {
+  const list = document.getElementById('qa-list'); list.innerHTML = ''; const c = getCompleted();
+  QUESTIONS.forEach((item, idx) => {
+    if (currentFilter !== 'all' && item.diff !== currentFilter) return;
+    if (searchTerm && !item.q.toLowerCase().includes(searchTerm.toLowerCase())) return;
+    const key = SECTION_KEY + '-' + idx; const done = !!c[key];
+    const card = document.createElement('div');
+    card.className = 'qa-card' + (done ? ' completed' : '');
+    card.style.animationDelay = (idx * 0.03) + 's';
+    card.innerHTML = `<div class="qa-question" data-idx="${idx}"><span class="qa-num">${String(idx + 1).padStart(2, '0')}</span><span class="qa-text">${item.q}</span><div class="qa-badges"><span class="diff-badge ${item.diff}">${item.diff}</span><span class="qa-chevron">▾</span></div></div><div class="qa-answer"><div class="qa-answer-inner">${item.a}<button class="review-btn ${done ? 'done' : ''}" data-idx="${idx}">${done ? '✓ Reviewed' : '☐ Mark as Reviewed'}</button></div></div>`;
+    list.appendChild(card);
+  });
+  list.querySelectorAll('.qa-question').forEach(el => { el.addEventListener('click', () => { const card = el.parentElement; const wasOpen = card.classList.contains('open'); list.querySelectorAll('.qa-card.open').forEach(c => c.classList.remove('open')); if (!wasOpen) card.classList.add('open'); }); });
+  list.querySelectorAll('.review-btn').forEach(el => { el.addEventListener('click', (e) => { e.stopPropagation(); const idx = el.dataset.idx; const key = SECTION_KEY + '-' + idx; const c = getCompleted(); if (c[key]) { delete c[key]; setXP(Math.max(0, getXP() - 10)); } else { c[key] = true; setXP(getXP() + 10); } setCompleted(c); refreshNav(); refreshProgress(); renderCards(); }); });
+}
+
+document.querySelectorAll('.filter-chip').forEach(chip => { chip.addEventListener('click', () => { document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active')); chip.classList.add('active'); currentFilter = chip.dataset.diff; renderCards(); }); });
+document.getElementById('search-input').addEventListener('input', (e) => { searchTerm = e.target.value; renderCards(); });
+refreshNav(); refreshProgress(); renderCards();
+</script>
+</body>
+</html>
