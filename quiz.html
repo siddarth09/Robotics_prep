@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROBOPREP — Quiz Mode</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg-deep: #060a12; --bg-main: #0a0e17; --bg-card: #111827; --bg-card-hover: #162032;
+  --border: #1e2a3a; --border-glow: #263248; --text-primary: #e8ecf1; --text-secondary: #8892a4; --text-muted: #4a5568;
+  --cyan: #00e5ff; --cyan-dim: rgba(0,229,255,0.15); --orange: #ff6b35; --orange-dim: rgba(255,107,53,0.15);
+  --green: #00e676; --green-dim: rgba(0,230,118,0.15); --purple: #b388ff; --purple-dim: rgba(179,136,255,0.15);
+  --yellow: #ffd740; --yellow-dim: rgba(255,215,64,0.15); --pink: #ff4081; --pink-dim: rgba(255,64,129,0.15);
+  --font-mono: 'JetBrains Mono', monospace; --font-sans: 'DM Sans', sans-serif;
+}
+html { scroll-behavior: smooth; }
+body { background: var(--bg-deep); color: var(--text-primary); font-family: var(--font-sans); min-height: 100vh; overflow-x: hidden; }
+body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px); background-size: 60px 60px; pointer-events: none; z-index: 0; }
+
+/* ── NAVBAR ── */
+.navbar { position: fixed; top: 0; left: 0; right: 0; height: 64px; background: rgba(6,10,18,0.88); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; z-index: 100; }
+.logo { font-family: var(--font-mono); font-weight: 800; font-size: 1.3rem; letter-spacing: 3px; color: var(--cyan); text-shadow: 0 0 20px rgba(0,229,255,0.4); text-decoration: none; }
+.logo span { color: var(--text-muted); font-weight: 400; }
+.nav-stats { display: flex; gap: 20px; align-items: center; font-family: var(--font-mono); font-size: 0.78rem; }
+.nav-stat { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+.nav-stat .val { color: var(--text-primary); font-weight: 600; }
+.nav-stat .icon { font-size: 1rem; }
+
+/* ── LAYOUT ── */
+.page { position: relative; z-index: 1; margin-top: 64px; padding: 48px 24px 80px; max-width: 760px; margin-left: auto; margin-right: auto; }
+.back-link { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); text-decoration: none; margin-bottom: 24px; transition: color 0.2s; }
+.back-link:hover { color: var(--text-secondary); }
+
+/* ── SETUP SCREEN ── */
+.setup-header { text-align: center; margin-bottom: 40px; }
+.setup-header h1 { font-family: var(--font-mono); font-size: clamp(1.6rem, 4vw, 2.2rem); font-weight: 800; margin-bottom: 8px; }
+.setup-header .accent { color: var(--cyan); }
+.setup-header p { color: var(--text-secondary); font-size: 0.95rem; line-height: 1.6; }
+
+.setup-section { margin-bottom: 32px; }
+.setup-label { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 14px; }
+
+.topic-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.topic-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 18px 16px; cursor: pointer; transition: all 0.25s; position: relative; overflow: hidden; }
+.topic-card:hover { border-color: var(--border-glow); background: var(--bg-card-hover); }
+.topic-card.selected { border-color: var(--cyan); background: rgba(0,229,255,0.06); }
+.topic-card.selected::before { content: '✓'; position: absolute; top: 10px; right: 12px; font-size: 0.85rem; color: var(--cyan); font-weight: 700; }
+.topic-card .t-icon { font-size: 1.4rem; margin-bottom: 8px; }
+.topic-card .t-name { font-family: var(--font-mono); font-size: 0.82rem; font-weight: 700; margin-bottom: 4px; }
+.topic-card .t-count { font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono); }
+
+.topic-card[data-section="controls"] .t-name { color: var(--cyan); }
+.topic-card[data-section="localization"] .t-name { color: var(--green); }
+.topic-card[data-section="rl"] .t-name { color: var(--orange); }
+.topic-card[data-section="sensors"] .t-name { color: var(--purple); }
+.topic-card[data-section="mujoco"] .t-name { color: var(--yellow); }
+
+.mode-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+.mode-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 16px; cursor: pointer; transition: all 0.25s; text-align: center; }
+.mode-card:hover { border-color: var(--border-glow); background: var(--bg-card-hover); }
+.mode-card.selected { border-color: var(--cyan); background: rgba(0,229,255,0.06); }
+.mode-card .m-icon { font-size: 1.6rem; margin-bottom: 8px; }
+.mode-card .m-name { font-family: var(--font-mono); font-size: 0.82rem; font-weight: 700; margin-bottom: 4px; }
+.mode-card .m-desc { font-size: 0.72rem; color: var(--text-muted); line-height: 1.4; }
+
+.count-row { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+.count-btn { font-family: var(--font-mono); font-size: 0.78rem; font-weight: 600; padding: 8px 20px; border-radius: 100px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
+.count-btn:hover { border-color: var(--text-muted); color: var(--text-secondary); }
+.count-btn.selected { background: var(--cyan-dim); border-color: var(--cyan); color: var(--cyan); }
+
+.start-btn { display: block; width: 100%; margin-top: 36px; font-family: var(--font-mono); font-size: 0.9rem; font-weight: 700; letter-spacing: 2px; padding: 16px 32px; border-radius: 12px; border: none; background: linear-gradient(135deg, var(--cyan), #00b8d4); color: var(--bg-deep); cursor: pointer; transition: all 0.3s; text-transform: uppercase; }
+.start-btn:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,229,255,0.3); }
+.start-btn:disabled { opacity: 0.3; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* ── QUIZ SCREEN ── */
+.quiz-screen { display: none; }
+.quiz-screen.active { display: block; }
+.setup-screen.hidden { display: none; }
+
+.quiz-topbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; gap: 16px; flex-wrap: wrap; }
+.quiz-progress-wrap { flex: 1; min-width: 120px; }
+.quiz-prog-text { font-family: var(--font-mono); font-size: 0.72rem; color: var(--text-muted); margin-bottom: 6px; }
+.quiz-prog-bg { height: 6px; background: var(--bg-card); border-radius: 100px; overflow: hidden; border: 1px solid var(--border); }
+.quiz-prog-fill { height: 100%; background: var(--cyan); border-radius: 100px; transition: width 0.4s ease; }
+.quiz-score { font-family: var(--font-mono); font-size: 0.85rem; font-weight: 700; color: var(--green); white-space: nowrap; }
+.quiz-timer { font-family: var(--font-mono); font-size: 0.85rem; color: var(--text-muted); white-space: nowrap; }
+
+.q-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 16px; padding: 32px 28px; margin-bottom: 20px; animation: fadeSlideIn 0.35s ease; }
+@keyframes fadeSlideIn { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.q-section-tag { font-family: var(--font-mono); font-size: 0.62rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; padding: 3px 10px; border-radius: 100px; display: inline-block; margin-bottom: 14px; }
+.q-section-tag.controls { background: var(--cyan-dim); color: var(--cyan); }
+.q-section-tag.localization { background: var(--green-dim); color: var(--green); }
+.q-section-tag.rl { background: var(--orange-dim); color: var(--orange); }
+.q-section-tag.sensors { background: var(--purple-dim); color: var(--purple); }
+.q-section-tag.mujoco { background: var(--yellow-dim); color: var(--yellow); }
+
+.q-diff-tag { font-family: var(--font-mono); font-size: 0.6rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 10px; border-radius: 100px; margin-left: 8px; }
+.q-diff-tag.core { background: var(--green-dim); color: var(--green); }
+.q-diff-tag.intermediate { background: var(--orange-dim); color: var(--orange); }
+.q-diff-tag.advanced { background: var(--purple-dim); color: var(--purple); }
+
+.q-text { font-size: 1.08rem; font-weight: 600; line-height: 1.6; margin-bottom: 24px; }
+
+/* Flashcard mode */
+.flash-prompt { font-size: 0.85rem; color: var(--text-muted); font-family: var(--font-mono); margin-bottom: 16px; letter-spacing: 1px; }
+.flash-reveal-btn { display: block; width: 100%; font-family: var(--font-mono); font-size: 0.85rem; font-weight: 600; letter-spacing: 1px; padding: 14px; border-radius: 10px; border: 1px dashed var(--border-glow); background: transparent; color: var(--text-secondary); cursor: pointer; transition: all 0.25s; }
+.flash-reveal-btn:hover { border-color: var(--cyan); color: var(--cyan); background: rgba(0,229,255,0.04); }
+.flash-answer { display: none; margin-top: 20px; padding-top: 20px; border-top: 1px solid var(--border); font-size: 0.88rem; line-height: 1.75; color: var(--text-secondary); }
+.flash-answer.visible { display: block; animation: fadeSlideIn 0.3s ease; }
+.flash-answer b { color: var(--text-primary); }
+.flash-answer code { font-family: var(--font-mono); font-size: 0.78rem; background: rgba(0,229,255,0.08); color: var(--cyan); padding: 2px 7px; border-radius: 4px; }
+.flash-answer .formula { display: block; font-family: var(--font-mono); font-size: 0.8rem; background: rgba(0,229,255,0.06); color: var(--cyan); border-left: 3px solid var(--cyan); padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 10px 0; overflow-x: auto; white-space: pre-wrap; }
+.flash-answer .key-point { display: block; background: var(--green-dim); border-left: 3px solid var(--green); padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 10px 0; color: var(--text-primary); font-size: 0.82rem; }
+.flash-answer .interview-tip { display: block; background: var(--orange-dim); border-left: 3px solid var(--orange); padding: 10px 14px; border-radius: 0 8px 8px 0; margin: 10px 0; color: var(--text-primary); font-size: 0.82rem; }
+
+.flash-rate-row { display: flex; gap: 10px; margin-top: 20px; }
+.flash-rate-btn { flex: 1; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 700; letter-spacing: 1px; padding: 12px 8px; border-radius: 10px; border: 1px solid var(--border); background: transparent; cursor: pointer; transition: all 0.2s; text-align: center; }
+.flash-rate-btn.again { color: var(--pink); }
+.flash-rate-btn.again:hover { border-color: var(--pink); background: var(--pink-dim); }
+.flash-rate-btn.hard { color: var(--orange); }
+.flash-rate-btn.hard:hover { border-color: var(--orange); background: var(--orange-dim); }
+.flash-rate-btn.good { color: var(--green); }
+.flash-rate-btn.good:hover { border-color: var(--green); background: var(--green-dim); }
+.flash-rate-btn.easy { color: var(--cyan); }
+.flash-rate-btn.easy:hover { border-color: var(--cyan); background: var(--cyan-dim); }
+
+/* ── RESULTS SCREEN ── */
+.results-screen { display: none; text-align: center; }
+.results-screen.active { display: block; }
+.results-icon { font-size: 3.5rem; margin-bottom: 16px; }
+.results-title { font-family: var(--font-mono); font-size: 1.6rem; font-weight: 800; margin-bottom: 8px; }
+.results-sub { color: var(--text-secondary); font-size: 0.95rem; margin-bottom: 32px; }
+
+.results-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 36px; }
+.r-stat { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; padding: 20px 12px; }
+.r-stat .r-val { font-family: var(--font-mono); font-size: 1.5rem; font-weight: 800; margin-bottom: 4px; }
+.r-stat .r-label { font-size: 0.72rem; color: var(--text-muted); font-family: var(--font-mono); letter-spacing: 1px; text-transform: uppercase; }
+
+.results-breakdown { text-align: left; margin-bottom: 32px; }
+.rb-title { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 14px; }
+.rb-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(30,42,58,0.5); }
+.rb-section { font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; min-width: 100px; }
+.rb-bar-bg { flex: 1; height: 6px; background: var(--bg-card); border-radius: 100px; overflow: hidden; }
+.rb-bar-fill { height: 100%; border-radius: 100px; transition: width 0.5s ease; }
+.rb-pct { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); min-width: 40px; text-align: right; }
+
+.results-btns { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.r-btn { font-family: var(--font-mono); font-size: 0.8rem; font-weight: 700; letter-spacing: 1.5px; padding: 14px 28px; border-radius: 10px; border: none; cursor: pointer; transition: all 0.25s; text-transform: uppercase; text-decoration: none; display: inline-block; }
+.r-btn.primary { background: linear-gradient(135deg, var(--cyan), #00b8d4); color: var(--bg-deep); }
+.r-btn.primary:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,229,255,0.3); }
+.r-btn.secondary { background: transparent; border: 1px solid var(--border); color: var(--text-secondary); }
+.r-btn.secondary:hover { border-color: var(--text-muted); color: var(--text-primary); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 600px) {
+  .page { padding: 36px 16px 60px; }
+  .topic-grid, .mode-grid { grid-template-columns: 1fr; }
+  .results-stats { grid-template-columns: 1fr; }
+  .q-card { padding: 24px 18px; }
+  .flash-rate-row { flex-wrap: wrap; }
+  .flash-rate-btn { min-width: calc(50% - 6px); }
+}
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="logo">ROBO<span>PREP</span></a>
+  <div class="nav-stats">
+    <div class="nav-stat"><span class="icon">⚡</span><span class="val" id="nav-xp">0</span> XP</div>
+    <div class="nav-stat"><span class="icon">🔥</span><span class="val" id="nav-streak">0</span> day</div>
+  </div>
+</nav>
+
+<div class="page">
+<a href="index.html" class="back-link">← back to dashboard</a>
+
+<!-- ═══════ SETUP SCREEN ═══════ -->
+<div class="setup-screen" id="setup-screen">
+  <div class="setup-header">
+    <h1>⚡ <span class="accent">Quiz</span> Mode</h1>
+    <p>Active recall practice. Pick your topics, choose a mode, and test yourself.</p>
+  </div>
+
+  <div class="setup-section">
+    <div class="setup-label">Select Topics</div>
+    <div class="topic-grid" id="topic-grid">
+      <div class="topic-card selected" data-section="controls"><div class="t-icon">🎛️</div><div class="t-name">Controls</div><div class="t-count">20 questions</div></div>
+      <div class="topic-card selected" data-section="localization"><div class="t-icon">📍</div><div class="t-name">Localization</div><div class="t-count">20 questions</div></div>
+      <div class="topic-card selected" data-section="rl"><div class="t-icon">🤖</div><div class="t-name">Reinforcement Learning</div><div class="t-count">20 questions</div></div>
+      <div class="topic-card selected" data-section="sensors"><div class="t-icon">📡</div><div class="t-name">Sensors & Perception</div><div class="t-count">20 questions</div></div>
+      <div class="topic-card selected" data-section="mujoco"><div class="t-icon">⚙️</div><div class="t-name">MuJoCo & Simulation</div><div class="t-count">20 questions</div></div>
+    </div>
+  </div>
+
+  <div class="setup-section">
+    <div class="setup-label">Quiz Mode</div>
+    <div class="mode-grid" id="mode-grid">
+      <div class="mode-card selected" data-mode="flashcard"><div class="m-icon">🃏</div><div class="m-name">Flashcard</div><div class="m-desc">See question, think, reveal answer, rate yourself</div></div>
+      <div class="mode-card" data-mode="timed"><div class="m-icon">⏱️</div><div class="m-name">Speed Round</div><div class="m-desc">60s per question — forces concise recall</div></div>
+      <div class="mode-card" data-mode="weak"><div class="m-icon">🎯</div><div class="m-name">Weak Spots</div><div class="m-desc">Prioritizes questions you rated "Again" or "Hard"</div></div>
+    </div>
+  </div>
+
+  <div class="setup-section">
+    <div class="setup-label">Number of Questions</div>
+    <div class="count-row" id="count-row">
+      <button class="count-btn" data-count="5">5</button>
+      <button class="count-btn selected" data-count="10">10</button>
+      <button class="count-btn" data-count="15">15</button>
+      <button class="count-btn" data-count="20">20</button>
+    </div>
+  </div>
+
+  <button class="start-btn" id="start-btn">START QUIZ →</button>
+</div>
+
+<!-- ═══════ QUIZ SCREEN ═══════ -->
+<div class="quiz-screen" id="quiz-screen">
+  <div class="quiz-topbar">
+    <div class="quiz-progress-wrap">
+      <div class="quiz-prog-text" id="qz-prog-text">1 / 10</div>
+      <div class="quiz-prog-bg"><div class="quiz-prog-fill" id="qz-prog-fill" style="width:10%"></div></div>
+    </div>
+    <div class="quiz-score" id="qz-score">⚡ 0 XP</div>
+    <div class="quiz-timer" id="qz-timer"></div>
+  </div>
+  <div id="qz-card-container"></div>
+</div>
+
+<!-- ═══════ RESULTS SCREEN ═══════ -->
+<div class="results-screen" id="results-screen">
+  <div class="results-icon" id="res-icon">🏆</div>
+  <div class="results-title" id="res-title">Quiz Complete!</div>
+  <div class="results-sub" id="res-sub">Great session — keep building those neural pathways.</div>
+  <div class="results-stats">
+    <div class="r-stat"><div class="r-val" id="res-correct" style="color:var(--green)">0</div><div class="r-label">Correct</div></div>
+    <div class="r-stat"><div class="r-val" id="res-xp" style="color:var(--cyan)">+0</div><div class="r-label">XP Earned</div></div>
+    <div class="r-stat"><div class="r-val" id="res-time" style="color:var(--yellow)">0s</div><div class="r-label">Total Time</div></div>
+  </div>
+  <div class="results-breakdown" id="res-breakdown"></div>
+  <div class="results-btns">
+    <button class="r-btn primary" id="res-retry">RETRY →</button>
+    <a href="index.html" class="r-btn secondary">DASHBOARD</a>
+  </div>
+</div>
+
+</div><!-- .page -->
+<script>
+// ── QUESTION BANK ──
+// Pulled from all 5 section pages. Each entry: { section, q, diff, a }
+const BANK = [
+  // ── CONTROLS (20) ──
+  {section:"controls",diff:"core",q:"What is the difference between a PID controller and an LQR controller? When would you choose one over the other for a robot arm?",a:"<p><b>PID</b> is a single-loop feedback controller: it drives one error signal to zero using proportional, integral, and derivative terms. It is model-free — you do not need a dynamics model, just tune three gains. <b>LQR</b> is an optimal state-feedback controller: given a linear state-space model (A, B matrices) and cost matrices Q and R, it computes a gain matrix K that minimizes a quadratic cost.</p><p>I would choose PID for simple single-joint regulation where the dynamics are straightforward. I would choose LQR when I have a reasonable linear model and need coordinated multi-joint control — like balancing a bipedal robot where all joints must cooperate.</p><span class='key-point'>Key: PID = model-free, single-loop. LQR = model-based, multi-variable, optimal for linear systems.</span>"},
+  {section:"controls",diff:"core",q:"Explain gravity compensation and why it matters for robot arms. How does it relate to the Jacobian?",a:"<p>Gravity compensation adds a feedforward torque term that exactly cancels the gravitational torques on each joint: <b>τ_grav = G(q)</b>. Without it, the controller must use feedback to fight gravity, wasting bandwidth and introducing steady-state error.</p><p>The Jacobian J maps joint velocities to end-effector velocities. For gravity comp, we need the <b>dynamics model</b> G(q) — not the Jacobian directly. But the Jacobian matters for Cartesian force control: τ = J^T × F_ext.</p><span class='key-point'>Key: Gravity compensation is feedforward — it frees the feedback controller to handle only tracking, not static load.</span>"},
+  {section:"controls",diff:"core",q:"What is impedance control and how does it differ from admittance control? When would you use each?",a:"<p><b>Impedance control:</b> Commands torques/forces in response to position errors. The robot behaves like a virtual spring-damper. Input: position error → Output: force. Good for torque-controlled robots (direct-drive arms).</p><p><b>Admittance control:</b> Measures external forces and outputs position commands. Input: force → Output: position. Good for position-controlled robots (industrial arms with stiff position loops).</p><span class='key-point'>Key: Impedance = torque-controlled hardware (force output). Admittance = position-controlled hardware (position output). Choose based on your actuator type.</span>"},
+  {section:"controls",diff:"intermediate",q:"Explain the concept of Lyapunov stability. How would you use a Lyapunov function to prove a controller stabilizes a nonlinear system?",a:"<p>A Lyapunov function V(x) is a scalar energy-like function where: (1) V(0) = 0, (2) V(x) > 0 for all x ≠ 0, and (3) V̇(x) ≤ 0 along system trajectories. If V̇ < 0 (strictly), the system is asymptotically stable.</p><p>To prove stability: pick a candidate V (often kinetic + potential energy), compute V̇ by substituting the closed-loop dynamics, then show the controller makes V̇ negative definite.</p><span class='key-point'>Key: Lyapunov = find an energy function that always decreases. No linearization needed — works for nonlinear systems globally.</span>"},
+  {section:"controls",diff:"intermediate",q:"What is Model Predictive Control (MPC)? What are its advantages over LQR for a walking robot like BHEEMA?",a:"<p>MPC solves a finite-horizon optimal control problem at every timestep, applying only the first control input. It re-plans every step with updated state. Unlike LQR, MPC handles <b>constraints</b> directly — torque limits, joint limits, friction cones — and can work with nonlinear models.</p><p>For BHEEMA: centroidal MPC plans center-of-mass trajectories subject to contact force constraints (friction cones, unilateral contact). LQR cannot enforce these inequality constraints.</p><span class='key-point'>Key: MPC = receding-horizon optimization with constraints. Essential for locomotion where friction cones and force limits matter.</span>"},
+  {section:"controls",diff:"intermediate",q:"What is Whole-Body Control (WBC) and how does it work with MPC for humanoid locomotion?",a:"<p>WBC takes high-level task commands (from MPC) and resolves them into joint torques while respecting the robot's full rigid-body dynamics, contact constraints, and joint limits. It solves a QP at each timestep:</p><p>minimize tracking error + regularization, subject to: dynamics equation, friction cones, torque limits, contact constraints.</p><p>In BHEEMA: MPC plans centroidal forces at ~30Hz. WBC converts these to joint torques at ~500Hz, handling the full 30+ DoF dynamics.</p><span class='key-point'>Key: MPC = what forces to apply (planning). WBC = which joint torques achieve those forces (execution). They form a hierarchy.</span>"},
+  {section:"controls",diff:"core",q:"What is the Jacobian transpose method for robot control and when does it fail?",a:"<p>The Jacobian transpose maps Cartesian forces to joint torques: <b>τ = J^T × F</b>. For end-effector control, compute F as a Cartesian PD: F = Kp(x_desired - x) + Kd(ẋ_desired - ẋ), then τ = J^T F.</p><p>It fails at <b>singularities</b> where the Jacobian loses rank — the robot cannot generate force in certain directions. It also does not guarantee straight-line Cartesian paths. For precise Cartesian tracking, use inverse kinematics or operational space control instead.</p><span class='key-point'>Key: J^T is simple and robust but cannot handle singularities or guarantee Cartesian path shape.</span>"},
+  {section:"controls",diff:"advanced",q:"Explain centroidal dynamics and why they matter for bipedal locomotion planning.",a:"<p>Centroidal dynamics describe the motion of the robot's center of mass and total angular momentum as a function of external forces. The key equations: m*ẍ_com = Σf_contact + m*g, and dL/dt = Σ(r_i × f_i). This is a 6-DoF model regardless of how many joints the robot has.</p><p>For BHEEMA: centroidal MPC plans in this reduced 6-DoF space rather than the full 30+ DoF configuration space. The QP finds contact forces that track desired CoM trajectory while satisfying friction cones. WBC then distributes these forces to individual joints.</p><span class='key-point'>Key: Centroidal dynamics reduce a 30+ DoF robot to 6 DoF (linear + angular momentum), making MPC tractable for real-time locomotion.</span>"},
+  {section:"controls",diff:"advanced",q:"What is the difference between joint-space and task-space (operational space) control? How does the dynamically-consistent pseudo-inverse help?",a:"<p><b>Joint-space control:</b> Tracks desired joint angles. Simple, no redundancy issues. But the task is usually defined in Cartesian space.</p><p><b>Task-space control:</b> Directly controls end-effector pose using the operational space formulation: F = Λ(q)ẍ + μ(q,q̇) + p(q), where Λ is the task-space inertia matrix.</p><p>The <b>dynamically-consistent pseudo-inverse</b> J̄ = M^(-1)J^T(JM^(-1)J^T)^(-1) ensures that null-space motions do not generate task-space accelerations. This decouples task from null-space control.</p><span class='key-point'>Key: Operational space control gives precise task-space dynamics. The dynamically-consistent pseudo-inverse enables true decoupling of task and null-space.</span>"},
+  {section:"controls",diff:"core",q:"What is cascaded control and why is it used on virtually every industrial robot?",a:"<p>Cascaded control nests multiple feedback loops: an inner fast loop (current/torque, ~10kHz), a middle loop (velocity, ~1kHz), and an outer slow loop (position, ~100Hz). Each loop only handles one dynamic mode at its natural timescale.</p><p>It works because separation of timescales allows each loop to be tuned independently. The inner loop rejects disturbances before they propagate. Every industrial robot and most research robots use this architecture.</p><span class='key-point'>Key: Cascade = fast inner loop + slow outer loop. Each loop is simple and independently tunable. It is the universal robot control architecture.</span>"},
+  {section:"controls",diff:"intermediate",q:"Explain null-space control for redundant manipulators. How would you use it for a 7-DoF arm doing a task that only needs 6-DoF?",a:"<p>A 7-DoF arm has one redundant DoF for a 6-DoF task (position + orientation). The null-space projector N = I - J^†J projects joint velocities into the space that does not affect the end-effector. We use: q̇ = J^†ẋ_task + N*q̇_null.</p><p>The null-space motion q̇_null can optimize secondary objectives: avoid joint limits, avoid obstacles, minimize energy. For the Franka Panda (7-DoF), I would use null-space to keep the elbow away from the table while the end-effector does pick-and-place.</p><span class='key-point'>Key: Null-space = extra DoF for secondary objectives without disturbing the primary task. Essential for 7+ DoF arms.</span>"},
+  {section:"controls",diff:"core",q:"Why do we need feedforward terms in robot control? Give examples of feedforward in both joint-space and Cartesian control.",a:"<p>Feedforward compensates for known dynamics without waiting for error. Feedback alone is reactive — it only acts after error appears. Feedforward acts proactively using the dynamics model.</p><p><b>Joint-space:</b> τ_ff = M(q)q̈_des + C(q,q̇)q̇_des + G(q). This is computed-torque / inverse dynamics. <b>Cartesian:</b> F_ff = Λ(q)ẍ_des + μ(q,q̇) + p(q). Both cancel known dynamic effects so feedback only handles model errors.</p><span class='key-point'>Key: Feedforward = use the model to predict needed torques. Feedback = correct model errors. Together they give precision + robustness.</span>"},
+  {section:"controls",diff:"advanced",q:"What is the difference between ZMP and capture point for bipedal balance? Which does BHEEMA use and why?",a:"<p><b>ZMP (Zero Moment Point):</b> The point on the ground where net moment is zero. If ZMP is inside the support polygon, the robot will not tip. Works for quasi-static and slow walking. Fails for dynamic motions — cannot capture push recovery.</p><p><b>Capture Point (Divergent Component of Motion):</b> Where the robot needs to step to avoid falling. Based on the Linear Inverted Pendulum Model. Handles dynamic balance and push recovery.</p><p>BHEEMA's centroidal MPC implicitly handles both — it optimizes CoM trajectory subject to contact force constraints, which subsumes ZMP and capture point as special cases.</p><span class='key-point'>Key: ZMP = static balance criterion. Capture Point = dynamic balance (where to step). Centroidal MPC unifies both.</span>"},
+  {section:"controls",diff:"intermediate",q:"Explain gain scheduling and why you might need it for a robot arm operating across different configurations.",a:"<p>Gain scheduling adjusts controller gains based on the operating point. A robot arm's dynamics change dramatically with configuration — inertia at full extension is much higher than near the body. Fixed gains that work at one pose may oscillate or be sluggish at another.</p><p>Implementation: identify key configuration variables (joint angles, payload mass), tune gains at several operating points, interpolate gains between them. For the Franka Panda, arm extended vs retracted changes the effective inertia by 5-10x.</p><span class='key-point'>Key: Robot dynamics are configuration-dependent. Fixed gains are a compromise. Gain scheduling adapts to the current operating point.</span>"},
+  {section:"controls",diff:"intermediate",q:"What is a Linear Parameter-Varying (LPV) system and how does it relate to robot control?",a:"<p>LPV systems are linear in state but nonlinear in scheduling parameters: ẋ = A(ρ)x + B(ρ)u, where ρ(t) varies with time/configuration. Robot dynamics at each configuration are approximately linear, making the whole system LPV.</p><p>This allows using linear control synthesis (LMIs, H-infinity) that guarantees stability across all parameter values, unlike gain scheduling which only guarantees stability at each operating point individually.</p><span class='key-point'>Key: LPV = rigorous framework for controlling systems whose dynamics change with configuration. More principled than gain scheduling.</span>"},
+  {section:"controls",diff:"advanced",q:"What is contact-implicit trajectory optimization? How does it differ from pre-specified contact sequences?",a:"<p>Contact-implicit optimization lets the optimizer discover which contacts to make and when, rather than specifying a fixed contact schedule. Contacts are modeled as complementarity constraints: f_n ≥ 0, d ≥ 0, f_n * d = 0 (force is positive only when distance is zero).</p><p>Advantage: can discover creative locomotion strategies (e.g., using a wall for support). Disadvantage: complementarity makes the problem non-smooth and very hard to solve. Most practical systems (including BHEEMA) use pre-specified contact sequences for tractability.</p><span class='key-point'>Key: Contact-implicit = optimizer discovers contacts. Powerful but computationally expensive. Pre-specified contacts are more tractable for real-time MPC.</span>"},
+  {section:"controls",diff:"core",q:"Explain the concept of passivity in robot control. Why does a passive controller guarantee stability when interacting with a passive environment?",a:"<p>A system is passive if it cannot generate energy — it can only store or dissipate it. Mathematically: ∫₀ᵗ u^T y dτ ≥ -β (energy input ≥ negative constant). A PD controller with gravity compensation is passive.</p><p>The key theorem: the feedback interconnection of two passive systems is stable. Since the physical environment is passive (cannot create energy from nothing), a passive controller interacting with it is guaranteed stable — no matter what the environment does.</p><span class='key-point'>Key: Passivity = cannot create energy. Passive controller + passive environment = always stable. This is the strongest stability guarantee for physical interaction.</span>"},
+  {section:"controls",diff:"intermediate",q:"How do you handle actuator saturation in a control system? What happens to an integral controller when actuators saturate?",a:"<p>Saturation clamps the commanded torque/force to hardware limits. When an integral controller saturates, the integral term keeps growing (it does not know the actuator is maxed out) — this is <b>integrator windup</b>. When the error finally reverses, the inflated integral causes massive overshoot.</p><p><b>Fix:</b> Anti-windup: stop integrating when the actuator saturates. Common methods: conditional integration (freeze integral when saturated), back-calculation (feed saturation error back to integrator).</p><span class='key-point'>Key: Integrator windup = integral accumulates during saturation, causes overshoot on recovery. Anti-windup is mandatory for any real system with integral control.</span>"},
+  {section:"controls",diff:"advanced",q:"What is iterative learning control (ILC) and when would you use it instead of MPC?",a:"<p>ILC improves performance over repeated executions of the same task by learning from previous trial errors. Each trial: u_{k+1}(t) = u_k(t) + L * e_k(t), where e_k is the tracking error from trial k.</p><p>Use ILC when: the task is repetitive (pick-and-place same object, walking same path), and you need sub-millimeter precision that feedback alone cannot achieve. ILC learns the repeating disturbance profile. MPC is better for non-repetitive tasks.</p><span class='key-point'>Key: ILC = learning from repetition. MPC = planning for each new situation. ILC achieves higher precision for repeated tasks; MPC handles novel situations.</span>"},
+  {section:"controls",diff:"advanced",q:"Explain how friction compensation works at the joint level. What are the challenges with Coulomb + viscous friction models?",a:"<p>Joint friction model: τ_fric = f_c * sign(q̇) + f_v * q̇. Coulomb friction f_c is constant opposing motion; viscous friction f_v scales with velocity. Feedforward compensation: add τ_ff = f̂_c * sign(q̇) + f̂_v * q̇ to cancel friction.</p><p>Challenges: (1) sign(q̇) is discontinuous at zero velocity — causes chattering. Fix: use a smooth approximation like tanh(q̇/ε). (2) Static friction is higher than kinetic — the Stribeck effect causes stick-slip. (3) Friction parameters change with temperature and wear.</p><span class='key-point'>Key: Friction compensation is feedforward. Main challenges: discontinuity at zero velocity (use smooth approximation) and parameter variation (use adaptive estimation).</span>"},
+
+  // ── LOCALIZATION (20) ──
+  {section:"localization",diff:"core",q:"Explain the Kalman Filter predict-update cycle. What assumptions does it make?",a:"<p><b>Predict:</b> x̂⁻ = A*x̂ + B*u, P⁻ = A*P*Aᵀ + Q. <b>Update:</b> K = P⁻*Hᵀ*(H*P⁻*Hᵀ + R)⁻¹, x̂ = x̂⁻ + K*(z - H*x̂⁻), P = (I - K*H)*P⁻.</p><p>Assumptions: (1) Linear dynamics and observation models, (2) Gaussian noise with known Q and R, (3) Markov property — state at t depends only on t-1.</p><span class='key-point'>Key: KF is optimal for linear Gaussian systems. Predict propagates uncertainty forward; update fuses measurement to reduce uncertainty. The Kalman gain K balances trust between prediction and measurement.</span>"},
+  {section:"localization",diff:"core",q:"What is the difference between EKF and UKF? When would you choose UKF?",a:"<p><b>EKF</b> linearizes the nonlinear model using first-order Taylor expansion (Jacobians). <b>UKF</b> uses sigma points — deterministic samples that capture the mean and covariance, propagated through the actual nonlinear function.</p><p>Choose UKF when: (1) Jacobians are hard to derive analytically, (2) nonlinearities are severe (e.g., bearing-only SLAM), (3) you want better covariance estimates without higher-order terms.</p><span class='key-point'>Key: EKF = linearize then propagate. UKF = propagate then approximate. UKF is better for highly nonlinear systems and requires no Jacobian derivation.</span>"},
+  {section:"localization",diff:"core",q:"What is a particle filter and when would you use it over EKF/UKF?",a:"<p>A particle filter represents the belief as a set of weighted samples (particles). Each particle is a hypothesis of the state. Predict: propagate particles through motion model with noise. Update: weight particles by measurement likelihood. Resample: duplicate high-weight particles.</p><p>Use over EKF/UKF when: (1) distribution is multi-modal (robot kidnapping, global localization), (2) highly nonlinear/non-Gaussian (e.g., landmark-based localization with ambiguous features).</p><span class='key-point'>Key: Particle filter handles multi-modal, non-Gaussian distributions. Cost is O(N particles). Use when EKF/UKF Gaussian assumption fails.</span>"},
+  {section:"localization",diff:"intermediate",q:"Explain the SLAM problem. What makes it fundamentally harder than localization with a known map?",a:"<p>SLAM simultaneously estimates robot pose AND map landmarks. The key difficulty: pose uncertainty and map uncertainty are <b>correlated</b>. A wrong pose estimate places landmarks incorrectly, which then corrupts future pose estimates — error accumulates cyclically.</p><p>With a known map, localization is a filtering problem (bounded uncertainty). SLAM is a joint estimation problem where the state grows with every new landmark. Loop closure is critical — recognizing a previously visited place corrects accumulated drift.</p><span class='key-point'>Key: SLAM couples pose and map estimation. Errors compound. Loop closure is the mechanism that bounds drift by recognizing revisited places.</span>"},
+  {section:"localization",diff:"intermediate",q:"How does an IMU work for state estimation? What are the drift characteristics and how do you mitigate them?",a:"<p>An IMU contains accelerometers (measure specific force, including gravity) and gyroscopes (measure angular velocity). Integration gives velocity (from accel) and orientation (from gyro).</p><p><b>Drift:</b> Accelerometer bias → velocity drift ∝ t, position drift ∝ t². Gyroscope bias → orientation drift ∝ t. After 60s of pure IMU integration, position error can be meters.</p><p><b>Mitigation:</b> Fuse with absolute sensors (GPS, cameras, LiDAR) via EKF/UKF. At Flomobility, I fused IMU with AprilTag detections — AprilTags provide absolute pose to correct IMU drift.</p><span class='key-point'>Key: IMU drifts unboundedly. Always fuse with absolute references. IMU provides high-rate between-measurement propagation; absolute sensors provide drift correction.</span>"},
+  {section:"localization",diff:"core",q:"What are AprilTags and how did you use them at Flomobility?",a:"<p>AprilTags are fiducial markers — black-and-white square patterns with unique IDs. A camera detects the tag and estimates its 6-DoF pose relative to the camera using the known tag geometry.</p><p>At Flomobility: I used AprilTags as fixed landmarks with known world positions. The camera detects tags → computes camera-to-tag transform → combined with tag-to-world transform gives camera pose in world frame. This provided absolute position corrections for the EKF fusing with wheel odometry and IMU.</p><span class='key-point'>Key: AprilTags give absolute 6-DoF pose from a single camera frame. No drift, no accumulated error. Perfect for structured environments where you can place markers.</span>"},
+  {section:"localization",diff:"intermediate",q:"Explain sensor fusion architectures: loosely coupled vs tightly coupled. Which did you use?",a:"<p><b>Loosely coupled:</b> Each sensor runs its own estimator independently, outputs are fused at the pose level. Example: GPS gives position, visual odometry gives pose, fuse both in a KF.</p><p><b>Tightly coupled:</b> Raw measurements from all sensors go into a single estimator. Example: raw IMU accelerations + raw pixel observations + raw LiDAR points in one optimization.</p><p>Tightly coupled is more accurate (uses correlations between sensors) but more complex. At Flomobility, we used loosely coupled: AprilTag pose estimates fused with IMU-integrated odometry in an EKF.</p><span class='key-point'>Key: Loosely coupled = easier, each sensor modular. Tightly coupled = better accuracy, uses cross-sensor correlations. Choose based on engineering budget.</span>"},
+  {section:"localization",diff:"advanced",q:"What is observability in the context of state estimation? Give an example of an unobservable state.",a:"<p>A state is observable if it can be determined from the sequence of measurements. Mathematically: the observability matrix O = [H; H*A; H*A²; ...] must have full rank.</p><p>Example: A robot with only a compass (measures heading) cannot observe its x,y position — position is unobservable from heading alone. An IMU without gravity (in free-fall) cannot observe roll/pitch — gravity is the reference for tilt.</p><span class='key-point'>Key: Observability determines what your sensors CAN estimate. If a state is unobservable, no filter can estimate it — you need a different sensor.</span>"},
+  {section:"localization",diff:"core",q:"How do you represent rotations in 3D? Compare rotation matrices, Euler angles, and quaternions.",a:"<p><b>Rotation matrices (3×3 SO(3)):</b> No singularities, compose by multiplication, but 9 parameters for 3 DoF (redundant). <b>Euler angles (roll/pitch/yaw):</b> 3 parameters, intuitive, but gimbal lock at ±90° pitch. <b>Quaternions (4D unit vector):</b> 4 parameters, no gimbal lock, smooth interpolation (SLERP), cheap composition.</p><p>For state estimation: I use quaternions. EKF state: [position, velocity, quaternion, gyro_bias, accel_bias]. Quaternion avoids gimbal lock that would crash the filter.</p><span class='key-point'>Key: Use quaternions for estimation (no gimbal lock, smooth). Use rotation matrices for composition. Avoid Euler angles except for human display.</span>"},
+  {section:"localization",diff:"intermediate",q:"What is the difference between graph-based SLAM and filter-based SLAM? Which scales better?",a:"<p><b>Filter-based (EKF-SLAM):</b> Maintains a joint state of robot pose + all landmarks. Update is O(N²) per step where N is landmarks. Marginalizes out past poses — cannot fix past errors.</p><p><b>Graph-based:</b> Stores all poses as nodes, measurements as edges. Optimizes the entire graph using least squares (g2o, GTSAM). Can fix past errors when loop closures arrive. Scales better with sparse solvers — O(N) to O(N log N).</p><span class='key-point'>Key: Graph-SLAM scales better and can correct past errors via loop closure. EKF-SLAM is simpler but O(N²) and cannot fix past mistakes. Modern SLAM is almost always graph-based.</span>"},
+  {section:"localization",diff:"advanced",q:"Explain factor graphs and how they are used in modern state estimation (e.g., GTSAM).",a:"<p>A factor graph represents the joint probability of all variables as a product of factors. Each factor encodes one constraint: IMU preintegration factor, camera observation factor, GPS factor, prior factor. Variables are robot poses, velocities, biases, landmarks.</p><p>Inference = find variable values maximizing the product of all factors = nonlinear least squares. iSAM2 (in GTSAM) does incremental updates — only re-optimizes affected variables when new factors arrive.</p><span class='key-point'>Key: Factor graphs unify all sensor measurements in a single probabilistic framework. GTSAM's iSAM2 enables real-time incremental optimization. This is the modern standard for multi-sensor fusion.</span>"},
+  {section:"localization",diff:"core",q:"What is wheel odometry and what are its failure modes?",a:"<p>Wheel odometry estimates displacement by counting wheel rotations: Δx = r*Δθ. For differential drive: Δpose from left/right wheel differences.</p><p><b>Failure modes:</b> (1) Wheel slip — wet/smooth floors cause over-estimation of travel. (2) Uneven terrain — wheels lift, encoders spin freely. (3) Drift accumulates without bound — 1% error per meter means 10m error after 1km. (4) Cannot detect lateral slip (crab motion).</p><span class='key-point'>Key: Wheel odometry is simple and high-rate but drifts unboundedly. Always fuse with absolute sensors. Trust it for short-term (seconds) but never for long-term.</span>"},
+  {section:"localization",diff:"intermediate",q:"What is scan matching (ICP) and how is it used in LiDAR-based localization?",a:"<p>ICP (Iterative Closest Point) aligns two point clouds by iteratively: (1) finding closest point correspondences, (2) computing the rigid transform minimizing distances, (3) applying the transform and repeating. Converges in 10-50 iterations.</p><p>For localization: match current LiDAR scan against previous scan (odometry) or a reference map (localization). Point-to-plane ICP converges faster than point-to-point. Needs a good initial guess — combine with IMU prediction.</p><span class='key-point'>Key: ICP finds the rigid transform aligning two point clouds. Needs a good initial guess (from IMU/odometry). Point-to-plane variant is faster and more robust.</span>"},
+  {section:"localization",diff:"advanced",q:"What is IMU preintegration and why is it important for visual-inertial odometry?",a:"<p>IMU preintegration compresses hundreds of IMU measurements between two keyframes into a single relative motion constraint. Instead of re-integrating all IMU samples when the bias estimate changes, preintegrated measurements can be corrected analytically with a first-order bias update.</p><p>This is critical for factor graph optimization: without preintegration, every bias update requires re-integrating all IMU data. With preintegration, bias correction is O(1) per factor.</p><span class='key-point'>Key: Preintegration = compress IMU data into a single relative motion factor with analytic bias correction. Enables efficient optimization in visual-inertial SLAM.</span>"},
+  {section:"localization",diff:"core",q:"How does GPS work for robot localization? What are its limitations?",a:"<p>GPS receivers measure pseudoranges to 4+ satellites and trilaterate position. Accuracy: ~2-5m (civilian), ~2cm (RTK-GPS with corrections). Frequency: 1-10 Hz.</p><p><b>Limitations:</b> (1) No indoor operation. (2) Multipath in urban canyons — signals bounce off buildings. (3) Low update rate — insufficient for fast control. (4) No orientation information. (5) Momentary outages from signal loss. Always fuse with IMU for continuous, high-rate state estimation.</p><span class='key-point'>Key: GPS provides absolute position but is low-rate, outdoor-only, and unreliable in urban environments. RTK-GPS gives cm accuracy but requires a base station.</span>"},
+  {section:"localization",diff:"intermediate",q:"What is the difference between localization and mapping in terms of computational requirements?",a:"<p><b>Localization (known map):</b> State is just the robot pose (6-DoF or 3-DoF). EKF with fixed map is O(1) per update. Particle filter is O(N_particles). Bounded computation.</p><p><b>Mapping:</b> State grows with explored area. Full SLAM state includes all landmarks/poses. Graph optimization cost grows with graph size. Map representation (occupancy grid, point cloud, mesh) grows with environment size.</p><span class='key-point'>Key: Localization is fixed-size estimation. Mapping grows unboundedly. This is why SLAM is harder — the estimation problem keeps growing.</span>"},
+  {section:"localization",diff:"advanced",q:"Explain degenerate cases in LiDAR SLAM (e.g., long featureless corridors). How do you detect and handle them?",a:"<p>In a long corridor, all LiDAR scans look the same along the corridor axis. The scan matching cost function has no minimum in that direction — the problem is <b>underconstrained</b>. The optimizer converges to any position along the corridor.</p><p><b>Detection:</b> Check the eigenvalues of the Hessian of the scan matching cost. If the smallest eigenvalue is near zero, one direction is degenerate. <b>Handling:</b> In the degenerate direction, rely entirely on odometry/IMU (do not update from LiDAR). Only update the well-constrained directions.</p><span class='key-point'>Key: Degeneracy = environment provides no information in some direction. Detect via Hessian eigenvalues. Handle by selectively trusting odometry in degenerate directions.</span>"},
+  {section:"localization",diff:"intermediate",q:"What is the covariance intersection algorithm and when would you use it?",a:"<p>Covariance intersection fuses two estimates when their cross-correlation is unknown. Standard KF fusion assumes known cross-correlation (usually zero = independent). When sensors share common information (e.g., both use the same IMU), assuming independence makes the fused covariance too small (overconfident).</p><p>CI computes: P_fused^{-1} = ω*P1^{-1} + (1-ω)*P2^{-1}, optimizing ω to minimize fused covariance. It is conservative but safe — never overconfident.</p><span class='key-point'>Key: Use covariance intersection when sensor estimates are correlated but you do not know the correlation. It is conservative but guaranteed consistent.</span>"},
+  {section:"localization",diff:"core",q:"What is the difference between global and local localization? Give examples of sensors suited for each.",a:"<p><b>Global localization:</b> Determine position from scratch — no initial guess. Requires recognizing absolute features. Sensors: GPS (outdoor), AprilTags, WiFi fingerprinting, place recognition (visual). Particle filter with many particles.</p><p><b>Local localization (tracking):</b> Refine a known approximate pose. Sensors: IMU, wheel odometry, LiDAR scan matching, visual odometry. EKF/UKF sufficient. Much easier — small search space.</p><span class='key-point'>Key: Global = where am I? (hard, need absolute references). Local = where am I relative to where I was? (easier, incremental). Most systems combine both — global for initialization, local for tracking.</span>"},
+  {section:"localization",diff:"advanced",q:"How does visual place recognition work for loop closure in SLAM? What are the failure modes?",a:"<p>Visual place recognition matches current camera image against a database of previous images to detect revisited locations. Methods: bag-of-words (DBoW2), learned descriptors (NetVLAD), or recent foundation model features.</p><p><b>Failure modes:</b> (1) Perceptual aliasing — different places look similar (two identical corridors). False positive loop closure corrupts the map catastrophically. (2) Viewpoint change — same place from different angles is not recognized. (3) Appearance change — lighting, season, weather. Always verify loop closures geometrically before accepting.</p><span class='key-point'>Key: Place recognition enables loop closure but false positives are catastrophic. Always verify with geometric consistency check (e.g., RANSAC on feature matches) before accepting a loop closure.</span>"},
+
+  // ── RL (20) ──
+  {section:"rl",diff:"core",q:"Explain the policy gradient theorem and how PPO improves upon vanilla REINFORCE.",a:"<p>Policy gradient theorem: ∇J(θ) = E[∇log π(a|s) × A(s,a)], where A is the advantage. REINFORCE uses Monte Carlo returns as advantage — high variance, slow convergence.</p><p>PPO improves this with: (1) clipped surrogate objective that prevents destructively large updates, (2) advantage estimation using GAE (lower variance), (3) multiple epochs of updates per data batch (better sample efficiency).</p><span class='key-point'>Key: PPO clips the policy ratio to [1-ε, 1+ε], preventing the policy from changing too much in one update. This gives stable, monotonic improvement — the key reason PPO is the default for robotics RL.</span>"},
+  {section:"rl",diff:"core",q:"What is Generalized Advantage Estimation (GAE) and why is it important?",a:"<p>GAE computes advantage as an exponentially-weighted average of n-step TD errors: Â = Σ (γλ)^t × δ_t, where δ_t = r_t + γV(s_{t+1}) - V(s_t).</p><p>λ controls the bias-variance tradeoff: λ=0 gives 1-step TD (low variance, high bias), λ=1 gives Monte Carlo (high variance, low bias). Typical λ=0.95 balances both.</p><span class='key-point'>Key: GAE smoothly interpolates between TD and Monte Carlo via λ. It is essential for PPO — without it, advantage estimates are either too noisy (Monte Carlo) or too biased (1-step TD).</span>"},
+  {section:"rl",diff:"core",q:"What is sim-to-real transfer and what are the main approaches?",a:"<p>Sim-to-real trains a policy in simulation and deploys on a real robot. The challenge: simulation physics differ from reality (the sim-to-real gap).</p><p><b>Approaches:</b> (1) Domain randomization — vary simulation parameters (mass, friction, delays) so the policy is robust to any setting including reality. (2) System identification — measure real parameters and match simulation. (3) Domain adaptation — fine-tune on real data. (4) Sim-to-sim — transfer between simulators as a proxy.</p><span class='key-point'>Key: Domain randomization is the most practical approach — train one robust policy instead of one fragile precise policy. At SpaceData, I randomized mass, friction, and motor parameters for the quadruped.</span>"},
+  {section:"rl",diff:"intermediate",q:"Explain reward shaping. What is the potential-based shaping theorem and why does it matter?",a:"<p>Reward shaping adds extra reward terms to guide learning. Naive shaping can change the optimal policy — the agent optimizes the shaped reward instead of the true task.</p><p>The potential-based shaping theorem (Ng et al. 1999): if the shaping reward is F(s,s') = γΦ(s') - Φ(s) for some potential function Φ, the optimal policy is unchanged. This guarantees the shaped reward guides learning without altering what is optimal.</p><span class='key-point'>Key: Only potential-based shaping preserves the optimal policy. Arbitrary reward bonuses can create unintended optima. Always verify your shaping satisfies F = γΦ(s') - Φ(s).</span>"},
+  {section:"rl",diff:"intermediate",q:"What is curriculum learning in RL? How did you apply it for locomotion?",a:"<p>Curriculum learning starts with easy tasks and progressively increases difficulty. This helps the policy find initial solutions before tackling the full problem.</p><p>For the quadruped at SpaceData: start on flat terrain, then add small bumps, then slopes, then rough terrain. Start with low speed targets, increase over training. The key is that each curriculum stage must overlap with the next — the policy needs to experience the transition.</p><span class='key-point'>Key: Curriculum prevents the cold-start problem — random policies on hard tasks learn nothing. Gradually increasing difficulty ensures continuous learning signal.</span>"},
+  {section:"rl",diff:"advanced",q:"What is reward hacking and how do you detect/prevent it in robotics RL?",a:"<p>Reward hacking: the policy finds an unintended way to maximize reward without performing the desired behavior. Example: a locomotion policy that vibrates in place to accumulate velocity reward, or a gripper that pushes objects off the table to avoid drop penalties.</p><p><b>Detection:</b> Always visualize trained policies — reward curves alone do not catch hacking. <b>Prevention:</b> Multi-term rewards with competing objectives, explicit penalties for undesired behaviors, action smoothness penalties, human video review at checkpoints.</p><span class='key-point'>Key: High reward ≠ correct behavior. Always visualize. The reward function is a specification — if it can be gamed, it will be. Defense is multi-objective rewards and visual inspection.</span>"},
+  {section:"rl",diff:"core",q:"What is the exploration-exploitation tradeoff? How does PPO handle exploration?",a:"<p>Exploration = trying new actions to discover better strategies. Exploitation = using the current best strategy. Too much exploration = slow convergence. Too much exploitation = stuck in local optima.</p><p>PPO uses a stochastic policy (Gaussian with learned std): actions are sampled from N(μ(s), σ²). Early in training, σ is large = high exploration. As training progresses, σ naturally decreases as the policy becomes more confident. Entropy bonus in the loss prevents premature convergence.</p><span class='key-point'>Key: PPO exploration comes from the stochastic policy + entropy bonus. The entropy coefficient controls how much exploration is maintained throughout training.</span>"},
+  {section:"rl",diff:"intermediate",q:"What is an asymmetric actor-critic and why is it used in sim-to-real?",a:"<p>The critic (value function) gets privileged information only available in simulation: true object positions, exact contact forces, terrain height maps. The actor (policy) only gets realistic observations: proprioception, noisy sensors.</p><p>The critic helps the actor learn better by providing more accurate advantage estimates. At deployment, only the actor runs — it has learned to act well despite limited observations, because it was trained with a critic that understood the full state.</p><span class='key-point'>Key: Asymmetric actor-critic = critic uses sim-only privileged info, actor uses only real-world-available observations. The actor implicitly learns to infer hidden states from observable ones.</span>"},
+  {section:"rl",diff:"advanced",q:"Explain domain randomization ranges — how do you decide what and how much to randomize?",a:"<p>Start with physical parameters that have the largest sim-to-real impact: (1) mass/inertia ±20%, (2) friction coefficients ±50%, (3) actuator delays 1-5ms, (4) observation noise matching sensor specs, (5) motor strength ±10%.</p><p>Method to set ranges: (1) Measure real parameters, set range to ±2σ of measurement uncertainty. (2) If no measurements, start conservative (±10%), train, test sim-to-real, widen if policy is brittle. (3) Sensitivity analysis: randomize one parameter at a time, measure performance variance.</p><span class='key-point'>Key: Randomize what you cannot measure precisely. Too narrow = policy is brittle. Too wide = policy is conservative or cannot learn. Use sensitivity analysis to focus on what matters.</span>"},
+  {section:"rl",diff:"core",q:"What is the discount factor γ and how does it affect learned behavior?",a:"<p>γ ∈ [0,1) determines how much the agent values future rewards. Return G = Σ γ^t r_t. High γ (0.99) = far-sighted, considers long-term consequences. Low γ (0.9) = myopic, prioritizes immediate reward.</p><p>For locomotion: γ=0.99 because walking requires planning ahead (foot placement affects balance 10+ steps later). For grasping: γ=0.95-0.99 depending on task horizon. γ also affects the effective horizon: T_eff ≈ 1/(1-γ). γ=0.99 → T_eff ≈ 100 steps.</p><span class='key-point'>Key: γ sets the planning horizon. Too low = reactive, cannot solve tasks requiring foresight. Too high = slow credit assignment, harder to learn. Match γ to the task's natural timescale.</span>"},
+  {section:"rl",diff:"intermediate",q:"What is PPO clipping and why is it better than TRPO's constraint?",a:"<p>TRPO constrains the KL divergence between old and new policies, requiring expensive conjugate gradient + line search. PPO approximates this with a clipped objective: L = min(r(θ)Â, clip(r(θ), 1-ε, 1+ε)Â), where r(θ) = π_new/π_old.</p><p>If the policy ratio exceeds 1+ε, the objective is capped — no incentive to move further. This is simpler (first-order optimization), parallelizes easily, and empirically matches TRPO performance.</p><span class='key-point'>Key: PPO clipping = simple, first-order approximation to TRPO's trust region. Same stability guarantees in practice, much easier to implement and scale to GPU-parallel training.</span>"},
+  {section:"rl",diff:"advanced",q:"What is the sim-to-real gap for RL locomotion? Rank the sources by impact.",a:"<p>Ranked by typical impact on transfer failure: (1) <b>Actuator modeling</b> — delays, bandwidth, gear backlash (highest impact). (2) <b>Contact dynamics</b> — real ground is rigid, sim contacts are soft. (3) <b>Observation latency</b> — real state estimation has 5-20ms delay. (4) <b>Mass/inertia errors</b> — cables, electronics, asymmetries. (5) <b>Sensor noise</b> — IMU drift, encoder quantization. (6) <b>Terrain</b> — real floors are uneven, slippery patches.</p><span class='key-point'>Key: Actuation model is the #1 sim-to-real gap for locomotion. Get the motor model right (delays, bandwidth, friction) and half the transfer problem is solved.</span>"},
+  {section:"rl",diff:"core",q:"What is the value function and why does PPO need both a policy and a value network?",a:"<p>The value function V(s) estimates expected cumulative reward from state s. The policy π(a|s) selects actions. PPO needs both because advantage estimation requires V(s): A(s,a) = r + γV(s') - V(s).</p><p>The value network is the critic — it evaluates how good a state is. The policy is the actor — it decides what to do. Training alternates: update V to better predict returns, update π using advantage computed from V.</p><span class='key-point'>Key: Policy = what to do. Value function = how good is this state. PPO needs the value function to compute advantage, which tells the policy which actions are better than expected.</span>"},
+  {section:"rl",diff:"intermediate",q:"Explain observation normalization and why it matters for RL training stability.",a:"<p>Observation normalization rescales inputs to zero mean and unit variance using running statistics. Without it, features at different scales (joint angles ~1 rad, velocities ~10 rad/s, forces ~100N) create gradient imbalance — the network focuses on large-magnitude features.</p><p>Implementation: maintain running mean/std, normalize: obs_norm = (obs - mean) / (std + ε). Update statistics with each batch. At deployment, freeze the statistics from training.</p><span class='key-point'>Key: Always normalize observations. It is free performance — unnormalized inputs cause unstable gradients and slow learning. Every serious RL codebase does this.</span>"},
+  {section:"rl",diff:"advanced",q:"What is teacher-student distillation for sim-to-real? How does it compare to domain randomization?",a:"<p>Teacher-student: (1) Train a teacher policy with privileged sim-only information (terrain map, exact contacts). (2) Train a student policy that only gets realistic observations to mimic the teacher. The student learns to infer hidden states from limited observations.</p><p>Compared to domain randomization: DR trains one policy to be robust to everything. Teacher-student trains a precise policy with full information, then distills it. Teacher-student often produces better performance because the student has a clear learning target (match the teacher) rather than averaging over randomized conditions.</p><span class='key-point'>Key: Teacher-student separates the problem: teacher solves the task perfectly with full info, student learns to approximate that behavior from limited sensors. Often superior to pure domain randomization.</span>"},
+  {section:"rl",diff:"core",q:"What is an MDP and what are its components?",a:"<p>A Markov Decision Process: (S, A, T, R, γ). S = state space, A = action space, T = transition function P(s'|s,a), R = reward function R(s,a,s'), γ = discount factor.</p><p>The Markov property: the future depends only on the current state, not the history. This enables recursive Bellman equations. In practice, we often have POMDPs (partial observability) — the agent sees observations, not true states. Stacking observation history or using RNNs partially addresses this.</p><span class='key-point'>Key: MDP = formal framework for sequential decision-making. The Markov property enables dynamic programming (value iteration, policy iteration) and is assumed by most RL algorithms.</span>"},
+  {section:"rl",diff:"intermediate",q:"What is PPO's entropy bonus and what happens if you remove it?",a:"<p>The entropy bonus adds H(π) = -Σ π log π to the loss, encouraging the policy to maintain diversity in actions. Coefficient typically 0.01.</p><p>Without it: the policy std σ collapses early — actions become deterministic before sufficiently exploring. The policy converges to the first local optimum it finds. With too much entropy bonus: the policy stays random and never converges. Anneal the coefficient: start high (0.05), decrease to 0.001 over training.</p><span class='key-point'>Key: Entropy bonus prevents premature convergence. Too little = stuck in local optima. Too much = never converges. Annealing from high to low is the practical solution.</span>"},
+  {section:"rl",diff:"advanced",q:"What are the failure modes of PPO training and how do you diagnose them?",a:"<p><b>1. Policy collapse (entropy drops to zero):</b> All actions converge to one value. Diagnose: plot entropy over time. Fix: increase entropy bonus, check for reward scaling issues.</p><p><b>2. Value function divergence:</b> V(s) predictions become huge. Diagnose: plot V loss over time. Fix: clip value function updates, reduce learning rate, normalize returns.</p><p><b>3. Explained variance drops:</b> Value function no longer predicts returns well. Diagnose: explained_variance = 1 - var(returns - V) / var(returns). Should be > 0.5. Fix: increase network capacity or training epochs.</p><p><b>4. KL divergence spikes:</b> Policy changes too much per update. Diagnose: monitor approx_kl. Fix: reduce learning rate or clipping ε.</p><span class='key-point'>Key: Monitor four diagnostics: entropy, value loss, explained variance, KL divergence. Together they diagnose almost every PPO training failure.</span>"},
+  {section:"rl",diff:"intermediate",q:"How do you design observation and action spaces for a locomotion policy?",a:"<p><b>Observations (~50-70 dims):</b> Base angular velocity (body frame, 3), gravity vector in body frame (3), joint positions relative to default (N_joints), joint velocities (N_joints), previous action (N_joints), command velocity (3). Optionally: gait phase clock (2), terrain height samples.</p><p><b>Actions (~12-20 dims):</b> Target joint positions (position actuator) or residual corrections on a nominal pose. Normalize to [-1, 1] range.</p><p><b>Key principles:</b> (1) Use body frame — heading invariant. (2) Include previous action — enables smoothness. (3) Exclude absolute x,y — would overfit to location.</p><span class='key-point'>Key: Observation design determines what the policy CAN learn. Action space determines what it CAN do. Both are more important than the algorithm choice.</span>"},
+  {section:"rl",diff:"advanced",q:"Explain the difference between on-policy (PPO) and off-policy (SAC) algorithms. When would you choose each for robotics?",a:"<p><b>On-policy (PPO):</b> Uses only data from the current policy. After each update, old data is discarded. Needs many environment interactions but each update is stable. Naturally parallelizes to thousands of environments.</p><p><b>Off-policy (SAC):</b> Stores all past experience in a replay buffer. Much more sample-efficient — reuses each sample many times. But harder to stabilize and does not parallelize as naturally.</p><p>Choose PPO for sim-based training where samples are cheap (MJX/Isaac Sim with 4096 envs). Choose SAC for real-robot learning where samples are expensive, or for manipulation tasks with sparse rewards.</p><span class='key-point'>Key: PPO = cheap samples, massive parallelism (sim training). SAC = expensive samples, better efficiency (real robot). For most sim-to-real robotics, PPO + massive parallelism wins.</span>"},
+
+  // ── SENSORS (20) ──
+  {section:"sensors",diff:"core",q:"Compare LiDAR and stereo cameras for robot perception. When would you choose each?",a:"<p><b>LiDAR:</b> Direct depth measurement via time-of-flight. Accurate to ±2cm at 100m. Works in darkness. Sparse point cloud (32-128 beams). Expensive ($200-$10k+). No color/texture.</p><p><b>Stereo cameras:</b> Depth from triangulation. Accuracy degrades with distance (error ∝ z²/baseline). Fails with textureless surfaces. Dense depth. Cheap ($100-$500). Provides color + texture.</p><p>Choose LiDAR for: outdoor navigation, long range, low light. Choose stereo for: indoor manipulation, texture-rich environments, budget constraints, when you also need color.</p><span class='key-point'>Key: LiDAR = direct, accurate depth at any range and lighting. Stereo = cheap, dense, but limited range and requires texture. Most real robots use both.</span>"},
+  {section:"sensors",diff:"core",q:"How does an IMU work? What are the typical noise characteristics of MEMS IMUs?",a:"<p>IMU = accelerometer (measures specific force) + gyroscope (measures angular velocity). MEMS accelerometers use a proof mass on springs — acceleration causes displacement measured capacitively. MEMS gyroscopes use the Coriolis effect on a vibrating structure.</p><p><b>Noise:</b> White noise (random walk when integrated) + bias instability (slowly drifting offset). Gyro: ~0.01-0.1 °/s noise, ~1-10 °/hr bias instability. Accel: ~0.01-0.1 m/s² noise, ~0.01-0.1 mg bias instability.</p><span class='key-point'>Key: IMU noise integrates into drift — gyro bias → orientation drift ∝ t, accel bias → position drift ∝ t². Allan variance characterizes the noise at different timescales.</span>"},
+  {section:"sensors",diff:"intermediate",q:"Explain camera calibration — intrinsic and extrinsic parameters. How do errors in calibration affect downstream perception?",a:"<p><b>Intrinsic:</b> focal length (fx, fy), principal point (cx, cy), distortion coefficients (k1, k2, p1, p2, k3). Maps 3D camera coordinates to 2D pixels. Calibrated using checkerboard patterns.</p><p><b>Extrinsic:</b> 6-DoF transform from camera to robot frame (rotation + translation). Calibrated using hand-eye calibration or known fiducials.</p><p>Errors propagate: 1-pixel intrinsic error → ~1mm depth error at 1m (stereo). Extrinsic error → systematic offset in all detections — the robot reaches 2cm to the left of every object.</p><span class='key-point'>Key: Calibration errors are SYSTEMATIC — they affect every single measurement the same way. This makes them especially dangerous because the filter cannot average them out.</span>"},
+  {section:"sensors",diff:"core",q:"What is the difference between a depth camera (RealSense, Kinect) and a stereo camera?",a:"<p><b>Structured light / ToF depth cameras:</b> Project a pattern (dots, lines) and measure distortion or time-of-flight. Active illumination = works on textureless surfaces. RealSense D435 uses stereo + IR projector.</p><p><b>Passive stereo:</b> Two cameras, triangulate depth from disparity. Requires visible texture. No power budget for the projector.</p><p>Key tradeoff: Active depth cameras work on blank walls but fail outdoors (IR washed out by sunlight). Passive stereo works outdoors but fails on textureless surfaces.</p><span class='key-point'>Key: Active depth = works indoors on any surface. Passive stereo = works outdoors. RealSense D435 is a hybrid — stereo + IR projector for the best of both.</span>"},
+  {section:"sensors",diff:"intermediate",q:"How do you perform hand-eye calibration? What is the AX=XB problem?",a:"<p>Hand-eye calibration finds the transform X between the camera and the robot end-effector. Move the robot to multiple poses, observe a known calibration target. Each pose gives: A_i × X = X × B_i, where A_i is the robot motion and B_i is the camera motion.</p><p>Solving AX=XB requires at least 2 motions with non-parallel rotation axes. Methods: Tsai-Lenz, Park-Martin, or modern reprojection-based optimization. Accuracy depends on motion diversity — rotate about multiple axes.</p><span class='key-point'>Key: Hand-eye calibration finds camera-to-end-effector transform. Need diverse motions (different rotation axes). 2+ motions minimum, 10-20 for robust results.</span>"},
+  {section:"sensors",diff:"advanced",q:"Explain point cloud registration beyond ICP. What are feature-based methods and when do they outperform ICP?",a:"<p>ICP is local — needs a good initial guess. Feature-based methods extract 3D keypoints and descriptors, match them across point clouds, and estimate the transform from correspondences.</p><p><b>Methods:</b> FPFH (Fast Point Feature Histograms), SHOT descriptors, or learned features (3DMatch, FCGF). Match features → RANSAC for robust estimation → ICP for refinement.</p><p>Feature-based outperforms ICP when: (1) large displacement between scans, (2) partial overlap, (3) no good initial guess. ICP is better for small, incremental alignment.</p><span class='key-point'>Key: Feature-based = global alignment (large motions, no initial guess). ICP = local refinement (small motions, good initial guess). Use both: features for coarse alignment, ICP for fine.</span>"},
+  {section:"sensors",diff:"core",q:"What is sensor fusion and why is it necessary for robust robot perception?",a:"<p>Sensor fusion combines data from multiple sensors to produce a more accurate and reliable state estimate than any single sensor alone. Each sensor has complementary strengths: IMU is fast but drifts, GPS is absolute but slow, LiDAR is accurate but sparse, cameras are dense but scale-ambiguous.</p><p>Fusion approaches: Kalman filter (linear, Gaussian), particle filter (nonlinear, multi-modal), factor graph optimization (most general). The key insight: redundancy provides both accuracy (averaging reduces noise) and robustness (if one sensor fails, others continue).</p><span class='key-point'>Key: No single sensor is sufficient for robust autonomy. Fusion provides accuracy through averaging, robustness through redundancy, and completeness through complementary modalities.</span>"},
+  {section:"sensors",diff:"intermediate",q:"How does a time-of-flight camera work? What are its limitations for robotics?",a:"<p>ToF cameras emit modulated IR light and measure the phase shift of the return signal to compute depth. Each pixel independently measures depth — no stereo matching needed.</p><p><b>Limitations:</b> (1) Multi-path interference — reflections from walls corrupt measurements. (2) Low resolution (typically 320×240). (3) Limited range (~5m indoor). (4) Interference from sunlight or other ToF cameras. (5) Black/absorptive surfaces return no signal.</p><span class='key-point'>Key: ToF gives per-pixel depth at high frame rate but suffers from multi-path, limited range, and low resolution. Best for short-range indoor applications.</span>"},
+  {section:"sensors",diff:"advanced",q:"Explain the difference between classical perception (feature extraction + matching) and deep learning-based perception. When is classical better?",a:"<p><b>Classical:</b> Hand-designed features (SIFT, ORB), explicit geometric reasoning (epipolar geometry, PnP), model-based matching. Interpretable, no training data needed, works on first try.</p><p><b>Deep learning:</b> Learned features (SuperPoint, DINOv2), end-to-end estimation (depth networks, pose networks). Better performance with enough data, handles ambiguous cases, but needs training data and is a black box.</p><p>Classical is better when: (1) limited training data, (2) safety-critical (need interpretability), (3) the geometry is well-constrained (calibrated multi-camera), (4) novel environments with no similar training data.</p><span class='key-point'>Key: Classical = interpretable, no data needed, geometry-grounded. Deep learning = better performance with data but opaque. Most production systems use hybrid: learned features + classical geometry.</span>"},
+  {section:"sensors",diff:"core",q:"What is the pinhole camera model and how do you handle lens distortion?",a:"<p>Pinhole model: projects 3D point [X,Y,Z] to pixel [u,v]: u = fx * X/Z + cx, v = fy * Y/Z + cy. Parameters: focal lengths fx,fy and principal point cx,cy.</p><p><b>Lens distortion:</b> Real lenses bend light, especially at edges. Radial distortion (barrel/pincushion): r' = r(1 + k1r² + k2r⁴ + k3r⁶). Tangential distortion: from lens misalignment. Undistort images using calibrated coefficients before any geometric computation.</p><span class='key-point'>Key: Always undistort before doing any geometry (triangulation, PnP, visual odometry). Distortion errors are largest at image edges — exactly where wide-angle cameras capture most of their field of view.</span>"},
+  {section:"sensors",diff:"intermediate",q:"How does a 2D LiDAR differ from a 3D LiDAR? What are the implications for SLAM?",a:"<p><b>2D LiDAR:</b> Single scan plane (e.g., 360° at one height). Fast, cheap, great for 2D SLAM on flat floors. Cannot see above/below the scan plane — misses table legs at different heights.</p><p><b>3D LiDAR:</b> Multiple scan lines (16-128 beams) covering a vertical field of view. Full 3D point cloud. More expensive, more data to process. Enables 3D SLAM, terrain mapping, object detection.</p><p>For SLAM: 2D LiDAR → 2D occupancy grid (sufficient for flat indoor environments). 3D LiDAR → 3D point cloud map or voxel grid (required for outdoor, multi-level, or rough terrain).</p><span class='key-point'>Key: 2D LiDAR = fast, cheap, perfect for flat indoor SLAM. 3D LiDAR = required for outdoor/unstructured environments. Match the sensor to the environment dimensionality.</span>"},
+  {section:"sensors",diff:"advanced",q:"Explain multi-sensor temporal calibration. Why is time synchronization critical and how do you achieve it?",a:"<p>Sensors sample at different rates and with different latencies. A LiDAR scan at 10Hz, camera at 30Hz, IMU at 200Hz — each with different internal delays. If timestamps are wrong by even 10ms, a robot moving at 1m/s has 1cm error on every measurement.</p><p><b>Hardware sync:</b> Trigger all sensors from a common clock (PPS signal from GPS, or hardware trigger line). <b>Software sync:</b> Estimate time offsets by maximizing correlation between sensor streams. <b>Continuous-time estimation:</b> Model the trajectory as a continuous curve (B-spline) and query it at each sensor's exact timestamp.</p><span class='key-point'>Key: Time sync errors create systematic position errors proportional to robot velocity. Hardware triggering is best. If impossible, estimate time offsets and use continuous-time trajectory estimation.</span>"},
+  {section:"sensors",diff:"core",q:"What is an encoder and what types are used in robotics?",a:"<p>Encoders measure rotational position of a motor/joint shaft. <b>Incremental encoders:</b> Output pulses as the shaft rotates — count pulses to track relative position. Lose absolute position on power loss. <b>Absolute encoders:</b> Output a unique code for each position — know absolute angle immediately on power-up.</p><p>Resolution: typically 1000-10000 counts per revolution. Quadrature encoding (A/B channels) gives 4x resolution and direction sensing. For BHEEMA: absolute encoders on each joint provide immediate state knowledge after power cycle.</p><span class='key-point'>Key: Incremental = cheaper, relative only, lose position on power loss. Absolute = more expensive, know position immediately. Use absolute for joints that need to know their state on startup.</span>"},
+  {section:"sensors",diff:"intermediate",q:"How does a force-torque sensor work and where would you mount it on a robot arm?",a:"<p>F/T sensors measure forces (Fx, Fy, Fz) and torques (Tx, Ty, Tz) using strain gauges on a deformable structure. The deformation pattern reveals the applied wrench.</p><p>Mounting: between the wrist and the end-effector (wrist-mounted). This measures the interaction force between the robot and the environment. Mounting at the base measures the total load but cannot distinguish end-effector forces from arm dynamics.</p><span class='key-point'>Key: Mount F/T sensor at the wrist for task-space force control. It measures the interaction wrench directly. Essential for compliant manipulation, assembly, and polishing tasks.</span>"},
+  {section:"sensors",diff:"advanced",q:"Explain the concept of sensor degeneracy. Give examples for different sensor types.",a:"<p>Sensor degeneracy occurs when the environment provides insufficient information for a sensor to constrain all degrees of freedom.</p><p><b>Examples:</b> (1) LiDAR in a long corridor — cannot constrain position along the corridor axis. (2) Monocular camera looking at a textureless wall — cannot determine distance. (3) IMU in free fall — cannot determine roll/pitch (no gravity reference). (4) Wheel encoders on ice — wheel slip makes readings meaningless. (5) GPS in a tunnel — no satellite signals.</p><span class='key-point'>Key: Every sensor has degenerate cases. Robust systems detect degeneracy (check observability/information measures) and fall back to other sensors. Never trust a single sensor unconditionally.</span>"},
+  {section:"sensors",diff:"core",q:"What is the field of view tradeoff in camera selection? How does it affect perception algorithms?",a:"<p>Wide FoV (fisheye, 180°+): sees more of the environment, better for SLAM and obstacle detection. But introduces severe distortion and lower angular resolution per pixel.</p><p>Narrow FoV (telephoto, 30-60°): high angular resolution, less distortion, better for long-range detection. But limited situational awareness.</p><p>For a mobile robot: wide-angle (120°) for navigation/SLAM, standard (60-90°) for manipulation/object recognition. Multiple cameras can provide both — use different lenses for different tasks.</p><span class='key-point'>Key: Wide FoV = more context, more distortion, lower resolution. Narrow FoV = higher resolution, less context. Match FoV to the task: navigation wants wide, manipulation wants standard.</span>"},
+  {section:"sensors",diff:"intermediate",q:"How do you fuse camera and LiDAR data? What are the calibration requirements?",a:"<p>Camera-LiDAR fusion projects LiDAR points into the camera image using the extrinsic calibration (6-DoF transform between sensors) and camera intrinsics. This gives each LiDAR point a color/semantic label, or gives each pixel an accurate depth.</p><p><b>Calibration:</b> Use a calibration target visible to both sensors (checkerboard with holes for LiDAR). Optimize the transform minimizing reprojection error of LiDAR points onto detected checkerboard corners.</p><span class='key-point'>Key: Camera-LiDAR fusion requires accurate extrinsic calibration (< 0.5° rotation, < 1cm translation). Even small calibration errors cause visible misalignment at long range.</span>"},
+  {section:"sensors",diff:"advanced",q:"Explain the concept of observability-constrained sensor fusion. How does it prevent filter inconsistency?",a:"<p>Standard EKF can accumulate spurious information in unobservable directions due to linearization errors. For example, in visual SLAM, global yaw is unobservable from a monocular camera — but EKF linearization creates false information that makes the filter think it knows the yaw precisely.</p><p>Observability-constrained methods (OC-EKF, FEJ-EKF) ensure the filter's observability properties match the underlying nonlinear system. First-Estimates Jacobians (FEJ): always evaluate Jacobians at the first state estimate, preserving the correct null space.</p><span class='key-point'>Key: Linearization in EKF can create false observability — the filter becomes overconfident in directions it should not be able to estimate. OC methods prevent this, maintaining filter consistency.</span>"},
+  {section:"sensors",diff:"intermediate",q:"What is the resolution vs range tradeoff in depth sensing? Compare structured light, stereo, and LiDAR.",a:"<p><b>Structured light (RealSense, Kinect):</b> Dense depth, 640×480+, range 0.3-10m. Resolution degrades quadratically with distance. Indoor only (IR washed out by sun).</p><p><b>Stereo:</b> Dense depth, resolution depends on baseline and focal length. Error ∝ z²/(f × baseline). Good for 0.5-20m with 10cm baseline.</p><p><b>LiDAR:</b> Sparse but accurate at long range (up to 200m). Resolution limited by beam count (32-128 lines). Constant accuracy regardless of range.</p><span class='key-point'>Key: Structured light = best for near-range indoor. Stereo = medium range, needs texture. LiDAR = long range, constant accuracy. Choose based on your operating range and environment.</span>"},
+  {section:"sensors",diff:"core",q:"What is RANSAC and why is it essential for perception?",a:"<p>RANSAC (Random Sample Consensus) robustly estimates model parameters from data containing outliers. Algorithm: (1) randomly sample minimal points, (2) fit model, (3) count inliers within threshold, (4) repeat N times, (5) keep best model, (6) refit using all inliers.</p><p>Essential because real sensor data always has outliers — mismatched features, incorrect correspondences, sensor artifacts. Least squares on data with 30% outliers gives garbage. RANSAC with 30% outliers still finds the correct model.</p><span class='key-point'>Key: RANSAC handles outliers that would corrupt any direct fitting method. It is used in virtually every geometric estimation pipeline: fundamental matrix, homography, PnP pose estimation, plane fitting.</span>"},
+
+  // ── MUJOCO (20) ──
+  {section:"mujoco",diff:"core",q:"Your MJCF model loads without errors, but the robot explodes on the first timestep. Walk through a systematic debugging checklist.",a:"<p>This is almost always a modeling problem. My checklist: (1) Render at timestep 0 without stepping — look for overlapping geometries causing huge initial contact forces. (2) Check qpos0 and joint limits — default angles of 0 might stack all links at the origin. (3) Timestep sanity — try 0.0005s or switch to implicitfast for stiff models. (4) Mass/inertia audit — unrealistic mass ratios (100kg vs 0.001kg) cause solver struggles. (5) Contact parameters — ensure solref timeconst isn't too close to timestep. (6) Add <code>armature=\"0.01\"</code> to regularize the mass matrix.</p><span class='key-point'>Key: MuJoCo faithfully integrates whatever you give it. If it explodes, the model is ill-conditioned. Fix: initial state, masses, contacts, timestep — in that order.</span>"},
+  {section:"mujoco",diff:"core",q:"Explain solref and solimp in MuJoCo's contact model. Your quadruped feet bounce like trampolines — what do you tune?",a:"<p><code>solref=[timeconst, dampratio]</code> defines contact spring-damper: omega=1/timeconst, dampratio=1.0 is critically damped. <code>solimp</code> controls how strictly the solver enforces constraints (0=soft, 1=hard).</p><p>Bouncy feet means dampratio is too low (underdamped). Fix: set <code>solref=\"0.02 1.0\"</code> for critical damping. If still bouncy, decrease timeconst to 0.01 for stiffer contact. Also check solimp — increase toward 0.95 if feet sink.</p><p>For sim-to-real: bouncy contacts in sim means the RL policy learns gaits that exploit the energy return. Real ground has no bounce — the policy stumbles.</p><span class='key-point'>Key: solref controls contact physics (spring-damper), solimp controls solver enforcement. For locomotion: always critically damped (dampratio=1.0) and high impedance (solimp ≥ 0.9).</span>"},
+  {section:"mujoco",diff:"core",q:"What is the armature parameter and how does it connect to real motor physics?",a:"<p><code>armature</code> adds to the diagonal of the mass matrix M(q). Physically, it is the reflected rotor inertia: I_reflected = N² × I_rotor, where N is gear ratio. A motor with gear ratio 50 and rotor inertia 1e-5 reflects 0.025 kg·m² to the joint — often larger than the link inertia.</p><p>Numerically, it regularizes the mass matrix: cond(M) improves, preventing huge accelerations from small forces. This is not a hack — it is real physics that every geared actuator has.</p><span class='key-point'>Key: armature = N² × I_rotor. It is the physics of geared motors, not a numerical trick. Omitting it makes the simulation both inaccurate and unstable.</span>"},
+  {section:"mujoco",diff:"intermediate",q:"Your Franka Panda gripper phases through objects instead of grasping. Diagnose and fix.",a:"<p>Debugging order: (1) Check collision geoms exist — visual meshes with contype=0 don't collide. Add explicit box primitives for fingers. (2) Verify contype/conaffinity bits match between finger and object. (3) Increase friction ≥ 1.0 on both surfaces. (4) Check condim — condim=1 means ZERO friction. Use condim=4 for torsional friction. (5) Verify actuator force limits aren't too low. (6) Increase solver iterations to 150+.</p><span class='key-point'>Key: Grasping fails silently. Check: collision geoms exist, contype/conaffinity match, condim ≥ 3, friction ≥ 1.0, solver iterations ≥ 150.</span>"},
+  {section:"mujoco",diff:"core",q:"Explain MuJoCo integrator options: Euler, implicit, and implicitfast. When would you switch from default?",a:"<p><b>Euler (semi-implicit):</b> Default, conditionally stable (dt < 2/omega_max). ~1x cost. <b>Implicit:</b> Unconditionally stable, ~2-3x cost. <b>Implicitfast:</b> Handles stiff contacts/tendons, skips Coriolis linearization, ~1.3x cost.</p><p>Switch to implicitfast when: stiff contacts with small timestep budget, tendon-driven hands, high gear ratios, or RL training (prevents NaN episodes). The 20-30% overhead is always repaid by eliminating stability resets.</p><span class='key-point'>Key: implicitfast is the correct default for RL training. Small overhead eliminates all NaN episodes and allows larger timesteps.</span>"},
+  {section:"mujoco",diff:"core",q:"Your sim runs at 500Hz but policy at 50Hz. How do you structure the substep loop?",a:"<p>10 substeps per action: get obs → compute action → hold action constant for 10 physics steps → compute reward. Critical details: (1) Apply action BEFORE substeps, not after. (2) Observe AFTER all substeps complete. (3) Don't leak intermediate states into reward. (4) The substep count defines effective control bandwidth.</p><p>Getting this wrong silently breaks sim-to-real: if the real robot runs at 48Hz instead of 50Hz, every action is held 4% longer. This compounds over a walking gait.</p><span class='key-point'>Key: Document three numbers: physics dt, policy frequency, substep count. Mismatch between sim and real control frequency is the most overlooked sim-to-real gap.</span>"},
+  {section:"mujoco",diff:"intermediate",q:"How do you set up domain randomization over contact parameters for manipulation?",a:"<p>Priority order: (1) Mass ±50-100%, (2) Friction 0.4-1.5, (3) Object size ±10%, (4) CoM offset ±1cm, (5) solref timeconst 0.005-0.03. Always call <code>mj_setConst(model, data)</code> after modifying mass/inertia. Monitor reward distribution — if >10% zero-reward episodes, ranges are too wide.</p><span class='key-point'>Key: Randomize mass and friction first (80% of the gap). Always call mj_setConst after parameter changes. Use sensitivity analysis to focus effort.</span>"},
+  {section:"mujoco",diff:"intermediate",q:"Compare MuJoCo's constraint-based contact to impulse-based engines (Bullet, PhysX). Why does it matter for RL?",a:"<p>MuJoCo solves a convex optimization for contact forces — smooth, deterministic, order-independent. Impulse engines iterate sequential impulses — can chatter, order-dependent, limited by iteration count.</p><p>For RL: MuJoCo gives smoother reward landscapes (easier for PPO), deterministic contacts, and reliable multi-contact (stacking). Impulse engines offer GPU parallelism (thousands of envs). MJX bridges both — MuJoCo physics on GPU via JAX.</p><span class='key-point'>Key: MuJoCo = best contact quality (smooth, deterministic). PhysX/Isaac Sim = best scale (GPU parallel). MJX = both.</span>"},
+  {section:"mujoco",diff:"intermediate",q:"What is MJX and how does it achieve 100x training speedup?",a:"<p>MJX reimplements MuJoCo physics in JAX. Single-env is 5x slower than C, but 4096 envs batched via <code>jax.vmap</code> run as fast as one on GPU. Result: ~100M+ steps/sec on an A100 vs ~1M on CPU.</p><p>Limitations: no mesh collisions (primitive-only), no tendons, PGS solver only. Check compatibility before converting. Same MJCF XML — just <code>mjx.put_model(mj_model)</code>.</p><span class='key-point'>Key: MJX doesn't make one env faster — it makes thousands parallel. vmap is the magic: 4096 envs = one GPU kernel call.</span>"},
+  {section:"mujoco",diff:"intermediate",q:"Your MuJoCo sim gives different results on different machines. Why? How do you guarantee reproducibility?",a:"<p>MuJoCo itself is deterministic. Non-determinism comes from: (1) floating-point non-associativity across CPUs/compilers, (2) different MuJoCo versions, (3) different BLAS implementations, (4) NumPy/random seed differences across versions.</p><p>Fix: Docker with pinned versions, set ALL random seeds, record hardware info. For benchmarking: 5-10 seeds, report mean ± std, Welch t-test for significance.</p><span class='key-point'>Key: Pin everything: library versions, seeds, hardware. Determinism isn't the goal — statistical rigor is. Always report multi-seed results.</span>"},
+  {section:"mujoco",diff:"advanced",q:"Design a full MuJoCo bipedal walking environment: MJCF, observations, reward, reset. Connect to BHEEMA.",a:"<p><b>MJCF:</b> Freejoint root (7 DoF), position actuators with kp=200, implicitfast integrator, solref=\"0.01 1\". <b>Obs (~68D):</b> quaternion, base angular/linear velocity (body frame), joint pos/vel, previous action, sin/cos gait phase. Exclude absolute x,y. <b>Reward:</b> exp(-4(v_x - v_target)²) + 0.5 survival - 0.01||torques||² - 0.05||Δaction||² - 0.5||v_y||². <b>Reset:</b> standing keyframe + noise on height/orientation/joints, randomize friction/mass, random v_target.</p><span class='key-point'>Key: Environment design > algorithm choice. Gait phase clock is critical — without it, discovering periodicity takes 10x longer. exp-quadratic velocity tracking prevents reward hacking.</span>"},
+  {section:"mujoco",diff:"advanced",q:"Your policy walks in sim but stumbles after 3 steps on the real robot. Walk through the sim-to-real debugging process.",a:"<p>3-step stumble = accumulated dynamics error. Debug layers: (1) Actuation: add action delay buffer (1-5ms) + first-order motor filter. (2) Mass: weigh real links, randomize ±20%. (3) Contacts: set solimp high (0.95+), randomize ground friction. (4) Observations: add sensor noise matching real IMU/encoders, add 1-step obs delay. (5) Timing: measure actual control rate, randomize ±5% in training.</p><p>Diagnostic process: replay same commands in sim and real open-loop. Compare trajectories — divergence location reveals the source (contacts, actuation, estimation).</p><span class='key-point'>Key: Open-loop replay is the diagnostic tool. Send same commands to sim and real, diff trajectories. Fix the largest divergence first — usually actuation delay.</span>"},
+  {section:"mujoco",diff:"core",q:"Explain MuJoCo position, velocity, and torque actuators. What are the failure modes of position actuators for RL?",a:"<p>All are special cases: tau = gain × (ctrl - bias). Position: tau = kp(target - q) - kd*q_dot. Velocity: tau = kv(target - q_dot). Torque: tau = ctrl directly. Position actuators are easiest for RL — policy outputs target angles, PD handles fast dynamics.</p><p>Failure modes: (1) kp/kd mismatch with real robot = systematic under/over-correction. (2) No damping (kd=0) = oscillation. (3) Missing action delay — MuJoCo applies instantly, real motors have latency.</p><span class='key-point'>Key: Position actuators simplify RL (policy learns WHERE, not HOW). But match kp/kd to real robot and add action delay to close the actuation gap.</span>"},
+  {section:"mujoco",diff:"core",q:"Your foot contact sensor reads zero even though the foot is visually on the ground. What's wrong?",a:"<p>Check in order: (1) Stale data — read sensordata after modifying qpos but BEFORE calling mj_forward. Fix: call mj_forward first. (2) Sensor on wrong body — site is on shin but contact is on foot child body. (3) Wrong sensor type — use <code>&lt;touch site=\"...\"&gt;</code> for contact force. (4) contype/conaffinity mismatch — geom visually on ground but no contact generated. (5) Zero penetration — foot exactly on surface with no velocity.</p><p>Quick diagnostic: print <code>data.ncon</code>. If ncon > 0 but sensor = 0 → sensor attachment issue. If ncon = 0 → contact filtering issue.</p><span class='key-point'>Key: Visual renderer and physics engine use different info. A geom can look grounded without generating contact. Always check data.ncon first.</span>"},
+  {section:"mujoco",diff:"intermediate",q:"How do you use MuJoCo equality constraints for a symmetric parallel-jaw gripper?",a:"<p>Joint equality with polycoef: <code>&lt;joint joint1=\"left\" joint2=\"right\" polycoef=\"0 -1 0 0 0\"/&gt;</code> constrains q_right = -q_left. One actuator drives both fingers. This matches real mechanical coupling.</p><p>The common mistake is using two independent actuators with mirrored commands — this allows unphysical asymmetric behavior that a real mechanical linkage prevents. Equality constraints enforce the physics correctly.</p><span class='key-point'>Key: Joint equality + one actuator = correct physics for coupled grippers. Two independent actuators with mirrored commands = modeling error that allows unphysical behavior.</span>"},
+  {section:"mujoco",diff:"intermediate",q:"Objects slide too easily when your robot arm pushes them. Diagnose and fix.",a:"<p>Check: (1) condim — if condim=1, there is literally ZERO friction regardless of friction values. Use condim ≥ 3 (4 for torsional). (2) Friction values — both surfaces need ≥ 1.0 (effective = geometric mean). (3) Object mass — 0.01kg accelerates at 100 m/s² from 1N. (4) Solver iterations — increase to 150+ for friction cone enforcement. (5) Cone type — <code>cone=\"elliptic\"</code> is more accurate than pyramidal.</p><span class='key-point'>Key: Check condim FIRST — condim=1 means zero friction. Then verify both surface frictions ≥ 1.0 and object mass is realistic.</span>"},
+  {section:"mujoco",diff:"intermediate",q:"Explain mj_step vs mj_forward vs mj_inverse vs mj_step1/mj_step2.",a:"<p><code>mj_forward</code>: computes kinematics, dynamics, sensors from current state — no integration. <code>mj_step</code> = mj_step1 + mj_step2 = forward dynamics + integration. <code>mj_step1/step2</code> split lets you read sensors then set controls between them (matches real sense-compute-act cycle). <code>mj_inverse</code>: given desired acceleration, compute required torques.</p><p>For RL: mj_step for training (99% of cases). mj_forward after reset (to avoid stale first observation). mj_inverse for computed-torque control and WBC.</p><span class='key-point'>Key: Always call mj_forward after episode reset. Use mj_step1/step2 for deployment validation to match real sensor-actuator timing.</span>"},
+  {section:"mujoco",diff:"advanced",q:"Fix excessive foot penetration during fast locomotion without reducing timestep.",a:"<p>Penetration = impact_velocity × dt / contact_stiffness. Without reducing dt: (1) Decrease solref timeconst to 0.005 (stiffer contact). (2) Switch to <code>implicitfast</code> — handles stiff contacts without instability. (3) Increase solimp to 0.95-0.99. (4) Use Newton solver (quadratic convergence). (5) Add <code>noslip_iterations=\"3\"</code> for velocity-level correction.</p><p>Combined: implicitfast + Newton + solref=0.005 + noslip_iterations=3 at dt=0.002. This is what I use for BHEEMA — same dt as training, minimal penetration.</p><span class='key-point'>Key: implicitfast + Newton + stiffer contacts + noslip. This keeps dt=0.002 for training speed while achieving minimal penetration. Don't fight stiff contacts with explicit Euler.</span>"},
+  {section:"mujoco",diff:"advanced",q:"How do you model a tendon-driven robot hand (Shadow Hand) in MuJoCo? Why is it hard for RL?",a:"<p>Tendons couple multiple joints: one tendon flexes MCP + PIP + DIP simultaneously via moment arms. <code>&lt;fixed&gt;</code> tendons define linear coupling; <code>&lt;spatial&gt;</code> tendons with wrapping give configuration-dependent moment arms.</p><p>Hard for RL because: (1) Underactuation — fewer tendons than joints. (2) Unilateral — tendons only pull, need antagonistic pairs. (3) Configuration-dependent moment arms = nonlinear inverse mapping. (4) Stiff dynamics require implicit integration. Use asymmetric actor-critic: critic gets tendon tensions (privileged), actor gets only proprioception.</p><span class='key-point'>Key: Tendon-driven = underactuation + pull-only + coupled dynamics. Start with fixed tendons (linear), use implicitfast, consider asymmetric actor-critic.</span>"},
+  {section:"mujoco",diff:"advanced",q:"Your quadruped vibrates in place with high reward instead of walking. What went wrong?",a:"<p>Reward hacking. Causes: (1) Velocity reward uses ||v|| not v_x — vibrating gives high speed magnitude. (2) Survival bonus dominates — standing is safer than walking. (3) No smoothness penalty — oscillating actuators at max frequency. (4) Bouncy contacts (dampratio < 1) — policy extracts energy from contact springs. (5) Observation aliasing — vibration frequency near Nyquist, indistinguishable from walking.</p><p>Fix all five: directional v_x reward with exp-quadratic tracking, reduce survival bonus, add ||Δaction||² penalty, set dampratio=1.0, include prev_action in observations. Add gait phase clock for periodic reference.</p><span class='key-point'>Key: Vibrating-in-place = local optimum from flawed reward. Fix is always multi-pronged: directional velocity, smoothness penalty, energy penalty, correct contacts, and gait phase clock.</span>"}
+];
+
+// ── LOCALSTORAGE HELPERS ──
+function getCompleted() { try { return JSON.parse(localStorage.getItem('roboprep_completed') || '{}'); } catch { return {}; } }
+function getXP() { return parseInt(localStorage.getItem('roboprep_xp') || '0', 10); }
+function setXP(v) { localStorage.setItem('roboprep_xp', String(v)); }
+function getStreak() { try { return JSON.parse(localStorage.getItem('roboprep_streak') || '{"count":0,"lastDate":""}'); } catch { return {count:0,lastDate:''}; } }
+function updateStreak() { const s = getStreak(); const today = new Date().toISOString().slice(0,10); if (s.lastDate === today) return; const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10); s.count = (s.lastDate === yesterday) ? s.count + 1 : 1; s.lastDate = today; localStorage.setItem('roboprep_streak', JSON.stringify(s)); }
+function getQuizStats() { try { return JSON.parse(localStorage.getItem('roboprep_quiz_stats') || '{}'); } catch { return {}; } }
+function setQuizStats(s) { localStorage.setItem('roboprep_quiz_stats', JSON.stringify(s)); }
+
+function refreshNav() { document.getElementById('nav-xp').textContent = getXP(); document.getElementById('nav-streak').textContent = getStreak().count; }
+
+// ── SETUP STATE ──
+let selectedTopics = new Set(['controls','localization','rl','sensors','mujoco']);
+let selectedMode = 'flashcard';
+let selectedCount = 10;
+
+// ── SETUP HANDLERS ──
+document.querySelectorAll('.topic-card').forEach(card => {
+  card.addEventListener('click', () => {
+    const sec = card.dataset.section;
+    if (selectedTopics.has(sec)) { selectedTopics.delete(sec); card.classList.remove('selected'); }
+    else { selectedTopics.add(sec); card.classList.add('selected'); }
+    validateStart();
+  });
+});
+
+document.querySelectorAll('.mode-card').forEach(card => {
+  card.addEventListener('click', () => {
+    document.querySelectorAll('.mode-card').forEach(c => c.classList.remove('selected'));
+    card.classList.add('selected');
+    selectedMode = card.dataset.mode;
+  });
+});
+
+document.querySelectorAll('.count-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.count-btn').forEach(b => b.classList.remove('selected'));
+    btn.classList.add('selected');
+    selectedCount = parseInt(btn.dataset.count, 10);
+  });
+});
+
+function validateStart() {
+  document.getElementById('start-btn').disabled = selectedTopics.size === 0;
+}
+
+// ── QUIZ ENGINE ──
+let quizQuestions = [];
+let currentIdx = 0;
+let quizXP = 0;
+let quizRatings = []; // {section, rating, idx_in_bank}
+let quizStartTime = 0;
+let timerInterval = null;
+let questionStartTime = 0;
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; }
+  return a;
+}
+
+document.getElementById('start-btn').addEventListener('click', startQuiz);
+
+function startQuiz() {
+  // Filter bank by selected topics
+  let pool = BANK.map((q, i) => ({ ...q, bankIdx: i })).filter(q => selectedTopics.has(q.section));
+
+  if (selectedMode === 'weak') {
+    // Prioritize questions rated "again" or "hard"
+    const stats = getQuizStats();
+    const weak = pool.filter(q => { const k = q.section + '-' + q.bankIdx; return stats[k] === 'again' || stats[k] === 'hard'; });
+    const rest = pool.filter(q => { const k = q.section + '-' + q.bankIdx; return stats[k] !== 'again' && stats[k] !== 'hard'; });
+    pool = [...shuffle(weak), ...shuffle(rest)];
+  } else {
+    pool = shuffle(pool);
+  }
+
+  quizQuestions = pool.slice(0, Math.min(selectedCount, pool.length));
+  currentIdx = 0;
+  quizXP = 0;
+  quizRatings = [];
+  quizStartTime = Date.now();
+
+  document.getElementById('setup-screen').classList.add('hidden');
+  document.getElementById('quiz-screen').classList.add('active');
+  document.getElementById('results-screen').classList.remove('active');
+
+  renderQuestion();
+}
+
+function renderQuestion() {
+  if (currentIdx >= quizQuestions.length) { finishQuiz(); return; }
+
+  const q = quizQuestions[currentIdx];
+  const total = quizQuestions.length;
+  const pct = ((currentIdx) / total * 100);
+
+  document.getElementById('qz-prog-text').textContent = (currentIdx + 1) + ' / ' + total;
+  document.getElementById('qz-prog-fill').style.width = pct + '%';
+  document.getElementById('qz-score').textContent = '⚡ ' + quizXP + ' XP';
+
+  // Timer
+  const timerEl = document.getElementById('qz-timer');
+  if (selectedMode === 'timed') {
+    questionStartTime = 60;
+    timerEl.textContent = '⏱ 60s';
+    timerEl.style.display = '';
+    clearInterval(timerInterval);
+    timerInterval = setInterval(() => {
+      questionStartTime--;
+      timerEl.textContent = '⏱ ' + questionStartTime + 's';
+      if (questionStartTime <= 10) timerEl.style.color = 'var(--pink)';
+      else timerEl.style.color = 'var(--text-muted)';
+      if (questionStartTime <= 0) {
+        clearInterval(timerInterval);
+        // Auto-rate as "again"
+        rateQuestion('again');
+      }
+    }, 1000);
+  } else {
+    timerEl.style.display = 'none';
+    clearInterval(timerInterval);
+  }
+
+  const container = document.getElementById('qz-card-container');
+  container.innerHTML = `
+    <div class="q-card">
+      <span class="q-section-tag ${q.section}">${q.section}</span>
+      <span class="q-diff-tag ${q.diff}">${q.diff}</span>
+      <div class="q-text">${q.q}</div>
+      <div class="flash-prompt">Think through your answer, then reveal.</div>
+      <button class="flash-reveal-btn" id="reveal-btn">TAP TO REVEAL ANSWER</button>
+      <div class="flash-answer" id="flash-answer">
+        ${q.a}
+        <div class="flash-rate-row" id="rate-row">
+          <button class="flash-rate-btn again" onclick="rateQuestion('again')">😵 AGAIN<br><span style="font-size:0.6rem;opacity:0.6">+0 XP</span></button>
+          <button class="flash-rate-btn hard" onclick="rateQuestion('hard')">😓 HARD<br><span style="font-size:0.6rem;opacity:0.6">+5 XP</span></button>
+          <button class="flash-rate-btn good" onclick="rateQuestion('good')">😊 GOOD<br><span style="font-size:0.6rem;opacity:0.6">+10 XP</span></button>
+          <button class="flash-rate-btn easy" onclick="rateQuestion('easy')">🔥 EASY<br><span style="font-size:0.6rem;opacity:0.6">+15 XP</span></button>
+        </div>
+      </div>
+    </div>
+  `;
+
+  document.getElementById('reveal-btn').addEventListener('click', () => {
+    document.getElementById('flash-answer').classList.add('visible');
+    document.getElementById('reveal-btn').style.display = 'none';
+  });
+}
+
+function rateQuestion(rating) {
+  clearInterval(timerInterval);
+  const q = quizQuestions[currentIdx];
+  const xpMap = { again: 0, hard: 5, good: 10, easy: 15 };
+  const earned = xpMap[rating] || 0;
+  quizXP += earned;
+
+  quizRatings.push({ section: q.section, rating, bankIdx: q.bankIdx });
+
+  // Save to quiz stats
+  const stats = getQuizStats();
+  stats[q.section + '-' + q.bankIdx] = rating;
+  setQuizStats(stats);
+
+  currentIdx++;
+  renderQuestion();
+}
+
+function finishQuiz() {
+  clearInterval(timerInterval);
+  document.getElementById('quiz-screen').classList.remove('active');
+  document.getElementById('results-screen').classList.add('active');
+
+  // Award XP
+  const prevXP = getXP();
+  setXP(prevXP + quizXP);
+  updateStreak();
+  refreshNav();
+
+  // Progress bar to 100%
+  document.getElementById('qz-prog-fill').style.width = '100%';
+
+  // Stats
+  const totalTime = Math.round((Date.now() - quizStartTime) / 1000);
+  const goodCount = quizRatings.filter(r => r.rating === 'good' || r.rating === 'easy').length;
+
+  // Title / icon based on performance
+  const pct = goodCount / quizRatings.length;
+  if (pct >= 0.8) { document.getElementById('res-icon').textContent = '🏆'; document.getElementById('res-title').textContent = 'Outstanding!'; document.getElementById('res-sub').textContent = 'You crushed it — those neural pathways are firing.'; }
+  else if (pct >= 0.5) { document.getElementById('res-icon').textContent = '💪'; document.getElementById('res-title').textContent = 'Solid Session!'; document.getElementById('res-sub').textContent = 'Good progress — keep reviewing the tough ones.'; }
+  else { document.getElementById('res-icon').textContent = '📚'; document.getElementById('res-title').textContent = 'Keep Going!'; document.getElementById('res-sub').textContent = 'Focus on the weak spots — revisit and drill.'; }
+
+  document.getElementById('res-correct').textContent = goodCount + '/' + quizRatings.length;
+  document.getElementById('res-xp').textContent = '+' + quizXP;
+  const mins = Math.floor(totalTime / 60);
+  const secs = totalTime % 60;
+  document.getElementById('res-time').textContent = mins > 0 ? mins + 'm ' + secs + 's' : secs + 's';
+
+  // Per-section breakdown
+  const sectionColors = { controls: 'var(--cyan)', localization: 'var(--green)', rl: 'var(--orange)', sensors: 'var(--purple)', mujoco: 'var(--yellow)' };
+  const sectionNames = { controls: 'Controls', localization: 'Localization', rl: 'RL', sensors: 'Sensors', mujoco: 'MuJoCo' };
+  const breakdown = {};
+  quizRatings.forEach(r => {
+    if (!breakdown[r.section]) breakdown[r.section] = { total: 0, good: 0 };
+    breakdown[r.section].total++;
+    if (r.rating === 'good' || r.rating === 'easy') breakdown[r.section].good++;
+  });
+
+  const bdEl = document.getElementById('res-breakdown');
+  let bdHTML = '<div class="rb-title">Per-Section Breakdown</div>';
+  for (const sec in breakdown) {
+    const b = breakdown[sec];
+    const p = Math.round(b.good / b.total * 100);
+    bdHTML += `<div class="rb-row">
+      <span class="rb-section" style="color:${sectionColors[sec]}">${sectionNames[sec]}</span>
+      <div class="rb-bar-bg"><div class="rb-bar-fill" style="width:${p}%;background:${sectionColors[sec]}"></div></div>
+      <span class="rb-pct">${b.good}/${b.total}</span>
+    </div>`;
+  }
+  bdEl.innerHTML = bdHTML;
+}
+
+// ── RETRY ──
+document.getElementById('res-retry').addEventListener('click', () => {
+  document.getElementById('results-screen').classList.remove('active');
+  document.getElementById('setup-screen').classList.remove('hidden');
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+});
+
+// ── INIT ──
+refreshNav();
+validateStart();
+</script>
+</body>
+</html>
