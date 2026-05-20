@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROBOPREP — Robotics Interview Prep</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-deep: #060a12;
+  --bg-main: #0a0e17;
+  --bg-card: #111827;
+  --bg-card-hover: #162032;
+  --border: #1e2a3a;
+  --border-glow: #263248;
+  --text-primary: #e8ecf1;
+  --text-secondary: #8892a4;
+  --text-muted: #4a5568;
+  --cyan: #00e5ff;
+  --cyan-dim: rgba(0,229,255,0.15);
+  --orange: #ff6b35;
+  --orange-dim: rgba(255,107,53,0.15);
+  --green: #00e676;
+  --green-dim: rgba(0,230,118,0.15);
+  --purple: #b388ff;
+  --purple-dim: rgba(179,136,255,0.15);
+  --yellow: #ffd740;
+  --yellow-dim: rgba(255,215,64,0.15);
+  --pink: #ff4081;
+  --pink-dim: rgba(255,64,129,0.15);
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'DM Sans', sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── BACKGROUND GRID ── */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── NAVBAR ── */
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background: rgba(6,10,18,0.85);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 100;
+}
+
+.logo {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 1.3rem;
+  letter-spacing: 3px;
+  color: var(--cyan);
+  text-shadow: 0 0 20px rgba(0,229,255,0.4);
+  text-decoration: none;
+}
+
+.logo span {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.nav-stats {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+
+.nav-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+
+.nav-stat .val {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.nav-stat .icon { font-size: 1rem; }
+
+/* ── HERO ── */
+.hero {
+  position: relative;
+  z-index: 1;
+  margin-top: 64px;
+  padding: 60px 24px 40px;
+  text-align: center;
+}
+
+.hero-badge {
+  display: inline-block;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  background: var(--cyan-dim);
+  border: 1px solid rgba(0,229,255,0.2);
+  padding: 6px 16px;
+  border-radius: 100px;
+  margin-bottom: 20px;
+}
+
+.hero h1 {
+  font-family: var(--font-mono);
+  font-size: clamp(1.8rem, 5vw, 3rem);
+  font-weight: 800;
+  line-height: 1.15;
+  margin-bottom: 12px;
+}
+
+.hero h1 .accent { color: var(--cyan); }
+.hero h1 .accent-2 { color: var(--orange); }
+
+.hero-sub {
+  font-size: 1.05rem;
+  color: var(--text-secondary);
+  max-width: 540px;
+  margin: 0 auto 30px;
+  line-height: 1.6;
+}
+
+.hero-level {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  color: var(--yellow);
+  background: var(--yellow-dim);
+  border: 1px solid rgba(255,215,64,0.2);
+  padding: 8px 18px;
+  border-radius: 8px;
+}
+
+/* ── OVERALL PROGRESS ── */
+.overall-progress {
+  position: relative;
+  z-index: 1;
+  max-width: 600px;
+  margin: 0 auto 50px;
+  padding: 0 24px;
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.progress-bar-bg {
+  width: 100%;
+  height: 8px;
+  background: var(--bg-card);
+  border-radius: 100px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--green));
+  border-radius: 100px;
+  transition: width 0.6s ease;
+  box-shadow: 0 0 12px rgba(0,229,255,0.3);
+}
+
+/* ── SECTION GRID ── */
+.sections-title {
+  position: relative;
+  z-index: 1;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.grid {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 20px;
+  max-width: 1100px;
+  margin: 0 auto 60px;
+  padding: 0 24px;
+}
+
+/* ── SECTION CARD ── */
+.card {
+  position: relative;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 28px 24px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  color: inherit;
+  display: block;
+  overflow: hidden;
+}
+
+.card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 16px 16px 0 0;
+  opacity: 0.7;
+  transition: opacity 0.3s;
+}
+
+.card:hover {
+  border-color: var(--border-glow);
+  transform: translateY(-4px);
+}
+
+.card:hover::before { opacity: 1; }
+
+.card[data-section="controls"]::before { background: var(--cyan); }
+.card[data-section="localization"]::before { background: var(--green); }
+.card[data-section="rl"]::before { background: var(--orange); }
+.card[data-section="sensors"]::before { background: var(--purple); }
+.card[data-section="mujoco"]::before { background: var(--yellow); }
+
+.card:hover[data-section="controls"] { box-shadow: 0 8px 40px rgba(0,229,255,0.1); }
+.card:hover[data-section="localization"] { box-shadow: 0 8px 40px rgba(0,230,118,0.1); }
+.card:hover[data-section="rl"] { box-shadow: 0 8px 40px rgba(255,107,53,0.1); }
+.card:hover[data-section="sensors"] { box-shadow: 0 8px 40px rgba(179,136,255,0.1); }
+.card:hover[data-section="mujoco"] { box-shadow: 0 8px 40px rgba(255,215,64,0.1); }
+
+.card-tag {
+  font-family: var(--font-mono);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.card[data-section="controls"] .card-tag { color: var(--cyan); }
+.card[data-section="localization"] .card-tag { color: var(--green); }
+.card[data-section="rl"] .card-tag { color: var(--orange); }
+.card[data-section="sensors"] .card-tag { color: var(--purple); }
+.card[data-section="mujoco"] .card-tag { color: var(--yellow); }
+
+.card-title {
+  font-family: var(--font-mono);
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.card-desc {
+  font-size: 0.88rem;
+  color: var(--text-secondary);
+  line-height: 1.55;
+  margin-bottom: 20px;
+}
+
+.card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.card-count {
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.card-count strong {
+  color: var(--text-secondary);
+}
+
+.card-progress-wrap {
+  flex: 1;
+  max-width: 120px;
+  margin-left: 16px;
+}
+
+.card-progress-bg {
+  width: 100%;
+  height: 4px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 100px;
+  overflow: hidden;
+}
+
+.card-progress-fill {
+  height: 100%;
+  border-radius: 100px;
+  transition: width 0.5s ease;
+}
+
+.card[data-section="controls"] .card-progress-fill { background: var(--cyan); }
+.card[data-section="localization"] .card-progress-fill { background: var(--green); }
+.card[data-section="rl"] .card-progress-fill { background: var(--orange); }
+.card[data-section="sensors"] .card-progress-fill { background: var(--purple); }
+.card[data-section="mujoco"] .card-progress-fill { background: var(--yellow); }
+
+.card-arrow {
+  font-size: 1.2rem;
+  color: var(--text-muted);
+  transition: transform 0.3s, color 0.3s;
+}
+
+.card:hover .card-arrow {
+  transform: translateX(4px);
+  color: var(--text-secondary);
+}
+
+/* ── QUIZ CTA ── */
+.quiz-cta {
+  position: relative;
+  z-index: 1;
+  max-width: 1100px;
+  margin: 0 auto 80px;
+  padding: 0 24px;
+}
+
+.quiz-banner {
+  background: linear-gradient(135deg, rgba(255,107,53,0.08), rgba(0,229,255,0.08));
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 36px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.quiz-info h3 {
+  font-family: var(--font-mono);
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.quiz-info p {
+  color: var(--text-secondary);
+  font-size: 0.9rem;
+}
+
+.quiz-btn {
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: var(--bg-deep);
+  background: var(--cyan);
+  border: none;
+  padding: 12px 28px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.quiz-btn:hover {
+  box-shadow: 0 4px 24px rgba(0,229,255,0.35);
+  transform: translateY(-2px);
+}
+
+/* ── FOOTER ── */
+.footer {
+  position: relative;
+  z-index: 1;
+  text-align: center;
+  padding: 32px 24px;
+  border-top: 1px solid var(--border);
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  letter-spacing: 1px;
+}
+
+.footer a {
+  color: var(--cyan);
+  text-decoration: none;
+}
+
+/* ── MOBILE ── */
+@media (max-width: 640px) {
+  .navbar { padding: 0 16px; }
+  .nav-stats { gap: 12px; }
+  .nav-stat span:not(.icon):not(.val) { display: none; }
+  .hero { padding: 40px 16px 30px; }
+  .grid { grid-template-columns: 1fr; padding: 0 16px; }
+  .quiz-banner { flex-direction: column; text-align: center; padding: 28px 20px; }
+  .quiz-btn { width: 100%; text-align: center; }
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.card {
+  animation: fadeUp 0.5s ease both;
+}
+
+.card:nth-child(1) { animation-delay: 0.05s; }
+.card:nth-child(2) { animation-delay: 0.1s; }
+.card:nth-child(3) { animation-delay: 0.15s; }
+.card:nth-child(4) { animation-delay: 0.2s; }
+.card:nth-child(5) { animation-delay: 0.25s; }
+</style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav class="navbar">
+  <a href="index.html" class="logo">ROBOPREP<span>.io</span></a>
+  <div class="nav-stats">
+    <div class="nav-stat">
+      <span class="icon">⚡</span>
+      <span>XP</span>
+      <span class="val" id="nav-xp">0</span>
+    </div>
+    <div class="nav-stat">
+      <span class="icon">🔥</span>
+      <span>Streak</span>
+      <span class="val" id="nav-streak">0</span>
+    </div>
+    <div class="nav-stat">
+      <span class="icon">✓</span>
+      <span class="val" id="nav-done">0</span>
+      <span>done</span>
+    </div>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">Interview Prep Engine</div>
+  <h1>Master <span class="accent">Robotics</span><br>Interviews<span class="accent-2">.</span></h1>
+  <p class="hero-sub">100 interview-grade questions across Controls, Localization, RL, Sensors & MuJoCo — gamified for active recall.</p>
+  <div class="hero-level" id="hero-level">🏅 Level: Intern</div>
+</section>
+
+<!-- OVERALL PROGRESS -->
+<div class="overall-progress">
+  <div class="progress-label">
+    <span>Overall Progress</span>
+    <span id="overall-pct">0%</span>
+  </div>
+  <div class="progress-bar-bg">
+    <div class="progress-bar-fill" id="overall-bar" style="width:0%"></div>
+  </div>
+</div>
+
+<!-- SECTION GRID -->
+<div class="sections-title">— Select a Topic —</div>
+<div class="grid" id="section-grid"></div>
+
+<!-- QUIZ CTA -->
+<div class="quiz-cta">
+  <div class="quiz-banner">
+    <div class="quiz-info">
+      <h3>⚡ Quiz Mode</h3>
+      <p>Random questions, active recall, XP rewards. Pick a section and test yourself.</p>
+    </div>
+    <a href="quiz.html" class="quiz-btn">START QUIZ →</a>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer class="footer">
+  ROBOPREP &copy; 2026 — Built for <a href="#">Siddarth Dayasagar</a> · Northeastern MS Robotics
+</footer>
+
+<script>
+// ── SECTION METADATA ──
+const SECTIONS = [
+  {
+    key: 'controls',
+    tag: 'SECTION 01',
+    title: 'Controls Engineering',
+    desc: 'PID, MPC, LQR, impedance control, Jacobians, whole-body controllers, and QP solvers.',
+    file: 'controls.html',
+    count: 20,
+    color: 'cyan'
+  },
+  {
+    key: 'localization',
+    tag: 'SECTION 02',
+    title: 'Localization & State Estimation',
+    desc: 'Kalman filters, EKF/UKF, sensor fusion, SLAM, IMU integration, and observability.',
+    file: 'localization.html',
+    count: 20,
+    color: 'green'
+  },
+  {
+    key: 'rl',
+    tag: 'SECTION 03',
+    title: 'Reinforcement Learning',
+    desc: 'PPO, GAE, reward shaping, domain randomization, sim-to-real, and policy architectures.',
+    file: 'rl.html',
+    count: 20,
+    color: 'orange'
+  },
+  {
+    key: 'sensors',
+    tag: 'SECTION 04',
+    title: 'Sensors & Perception',
+    desc: 'IMUs, LiDAR, cameras, encoders, sensor models, noise, calibration, and fusion.',
+    file: 'sensors.html',
+    count: 20,
+    color: 'purple'
+  },
+  {
+    key: 'mujoco',
+    tag: 'SECTION 05',
+    title: 'MuJoCo & Simulation',
+    desc: 'MJCF modeling, contacts, solvers, MJX, actuators, debugging, and sim pipelines.',
+    file: 'mujoco.html',
+    count: 20,
+    color: 'yellow'
+  }
+];
+
+// ── LOCALSTORAGE HELPERS ──
+function getCompleted() {
+  try { return JSON.parse(localStorage.getItem('roboprep_completed') || '{}'); } catch { return {}; }
+}
+function getXP() {
+  return parseInt(localStorage.getItem('roboprep_xp') || '0', 10);
+}
+function getStreak() {
+  try { return JSON.parse(localStorage.getItem('roboprep_streak') || '{"count":0,"lastDate":""}'); } catch { return {count:0,lastDate:''}; }
+}
+function updateStreak() {
+  const s = getStreak();
+  const today = new Date().toISOString().slice(0,10);
+  if (s.lastDate === today) return;
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+  if (s.lastDate === yesterday) {
+    s.count++;
+  } else if (s.lastDate !== today) {
+    s.count = 1;
+  }
+  s.lastDate = today;
+  localStorage.setItem('roboprep_streak', JSON.stringify(s));
+}
+function getLevel(xp) {
+  if (xp >= 1000) return '🏆 Principal';
+  if (xp >= 600) return '🥇 Senior';
+  if (xp >= 300) return '🥈 Mid-Level';
+  if (xp >= 100) return '🥉 Junior';
+  return '🏅 Intern';
+}
+
+function getSectionDone(key, count) {
+  const c = getCompleted();
+  let done = 0;
+  for (let i = 0; i < count; i++) {
+    if (c[key + '-' + i]) done++;
+  }
+  return done;
+}
+
+// ── RENDER ──
+function render() {
+  updateStreak();
+  const xp = getXP();
+  const streak = getStreak();
+  const completed = getCompleted();
+
+  document.getElementById('nav-xp').textContent = xp;
+  document.getElementById('nav-streak').textContent = streak.count;
+
+  let totalDone = 0;
+  let totalQ = 0;
+
+  const grid = document.getElementById('section-grid');
+  grid.innerHTML = '';
+
+  SECTIONS.forEach(s => {
+    const done = getSectionDone(s.key, s.count);
+    totalDone += done;
+    totalQ += s.count;
+    const pct = Math.round((done / s.count) * 100);
+
+    const card = document.createElement('a');
+    card.href = s.file;
+    card.className = 'card';
+    card.dataset.section = s.key;
+    card.innerHTML = `
+      <div class="card-tag">${s.tag}</div>
+      <div class="card-title">${s.title}</div>
+      <div class="card-desc">${s.desc}</div>
+      <div class="card-meta">
+        <div class="card-count"><strong>${done}</strong> / ${s.count} reviewed</div>
+        <div class="card-progress-wrap">
+          <div class="card-progress-bg">
+            <div class="card-progress-fill" style="width:${pct}%"></div>
+          </div>
+        </div>
+        <div class="card-arrow">→</div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+
+  document.getElementById('nav-done').textContent = totalDone;
+  const overallPct = totalQ ? Math.round((totalDone / totalQ) * 100) : 0;
+  document.getElementById('overall-pct').textContent = overallPct + '%';
+  document.getElementById('overall-bar').style.width = overallPct + '%';
+  document.getElementById('hero-level').textContent = getLevel(xp);
+}
+
+render();
+</script>
+</body>
+</html>

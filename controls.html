@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROBOPREP — Controls Engineering</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-deep: #060a12;
+  --bg-main: #0a0e17;
+  --bg-card: #111827;
+  --bg-card-hover: #162032;
+  --bg-card-open: #0f1b2d;
+  --border: #1e2a3a;
+  --border-glow: #263248;
+  --text-primary: #e8ecf1;
+  --text-secondary: #8892a4;
+  --text-muted: #4a5568;
+  --cyan: #00e5ff;
+  --cyan-dim: rgba(0,229,255,0.12);
+  --orange: #ff6b35;
+  --orange-dim: rgba(255,107,53,0.12);
+  --green: #00e676;
+  --green-dim: rgba(0,230,118,0.12);
+  --purple: #b388ff;
+  --purple-dim: rgba(179,136,255,0.12);
+  --yellow: #ffd740;
+  --section-accent: var(--cyan);
+  --section-dim: var(--cyan-dim);
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'DM Sans', sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,229,255,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,229,255,0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── NAVBAR ── */
+.navbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 64px;
+  background: rgba(6,10,18,0.88);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 100;
+}
+
+.logo {
+  font-family: var(--font-mono);
+  font-weight: 800;
+  font-size: 1.3rem;
+  letter-spacing: 3px;
+  color: var(--cyan);
+  text-shadow: 0 0 20px rgba(0,229,255,0.4);
+  text-decoration: none;
+}
+.logo span { color: var(--text-muted); font-weight: 400; }
+
+.nav-stats {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+}
+.nav-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-secondary);
+}
+.nav-stat .val { color: var(--text-primary); font-weight: 600; }
+.nav-stat .icon { font-size: 1rem; }
+
+/* ── SECTION HEADER ── */
+.section-header {
+  position: relative;
+  z-index: 1;
+  margin-top: 64px;
+  padding: 48px 24px 20px;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.back-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  text-decoration: none;
+  margin-bottom: 20px;
+  transition: color 0.2s;
+}
+.back-link:hover { color: var(--text-secondary); }
+
+.section-tag {
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 2.5px;
+  text-transform: uppercase;
+  color: var(--section-accent);
+  margin-bottom: 8px;
+}
+
+.section-title {
+  font-family: var(--font-mono);
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.section-desc {
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  margin-bottom: 24px;
+}
+
+/* ── PROGRESS BAR ── */
+.progress-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+.progress-text {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  min-width: 70px;
+}
+.progress-bar-bg {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-card);
+  border-radius: 100px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+}
+.progress-bar-fill {
+  height: 100%;
+  background: var(--section-accent);
+  border-radius: 100px;
+  transition: width 0.5s ease;
+  box-shadow: 0 0 10px rgba(0,229,255,0.3);
+}
+
+/* ── FILTERS ── */
+.filters {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+  margin: 0 auto 24px;
+  padding: 0 24px;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.filter-chip {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  padding: 7px 16px;
+  border-radius: 100px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.filter-chip:hover { border-color: var(--text-muted); color: var(--text-secondary); }
+.filter-chip.active {
+  background: var(--section-dim);
+  border-color: var(--section-accent);
+  color: var(--section-accent);
+}
+
+.search-input {
+  flex: 1;
+  min-width: 160px;
+  font-family: var(--font-mono);
+  font-size: 0.78rem;
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--bg-card);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.2s;
+}
+.search-input::placeholder { color: var(--text-muted); }
+.search-input:focus { border-color: var(--section-accent); }
+
+/* ── Q&A CARDS ── */
+.qa-list {
+  position: relative;
+  z-index: 1;
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 0 24px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.qa-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  overflow: hidden;
+  transition: border-color 0.3s;
+}
+.qa-card:hover { border-color: var(--border-glow); }
+.qa-card.completed { border-left: 3px solid var(--green); }
+.qa-card.open { background: var(--bg-card-open); border-color: var(--border-glow); }
+
+.qa-question {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 20px;
+  cursor: pointer;
+  user-select: none;
+}
+
+.qa-num {
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--section-accent);
+  min-width: 28px;
+  padding-top: 2px;
+}
+
+.qa-text {
+  flex: 1;
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.qa-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.diff-badge {
+  font-family: var(--font-mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 3px 10px;
+  border-radius: 100px;
+}
+.diff-badge.core { background: var(--green-dim); color: var(--green); }
+.diff-badge.intermediate { background: var(--orange-dim); color: var(--orange); }
+.diff-badge.advanced { background: var(--purple-dim); color: var(--purple); }
+
+.qa-chevron {
+  font-size: 1rem;
+  color: var(--text-muted);
+  transition: transform 0.3s;
+  flex-shrink: 0;
+  padding-top: 2px;
+}
+.qa-card.open .qa-chevron { transform: rotate(180deg); }
+
+/* ── ANSWER PANEL ── */
+.qa-answer {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease;
+}
+
+.qa-card.open .qa-answer {
+  max-height: 5000px;
+}
+
+.qa-answer-inner {
+  padding: 0 20px 20px 60px;
+  font-size: 0.9rem;
+  line-height: 1.75;
+  color: var(--text-secondary);
+}
+
+.qa-answer-inner b { color: var(--text-primary); }
+
+.qa-answer-inner code {
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  background: rgba(0,229,255,0.08);
+  color: var(--cyan);
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.formula {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 0.82rem;
+  background: rgba(179,136,255,0.08);
+  color: var(--purple);
+  border-left: 3px solid var(--purple);
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+  margin: 12px 0;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.key-point {
+  display: block;
+  background: var(--green-dim);
+  border-left: 3px solid var(--green);
+  padding: 10px 16px;
+  border-radius: 0 8px 8px 0;
+  margin: 12px 0;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.interview-tip {
+  display: block;
+  background: var(--orange-dim);
+  border-left: 3px solid var(--orange);
+  padding: 10px 16px;
+  border-radius: 0 8px 8px 0;
+  margin: 12px 0;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+}
+
+.qa-answer-inner p { margin-bottom: 10px; }
+
+.review-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  padding: 8px 18px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  margin-top: 16px;
+  transition: all 0.2s;
+}
+.review-btn:hover { border-color: var(--green); color: var(--green); }
+.review-btn.done {
+  background: var(--green-dim);
+  border-color: var(--green);
+  color: var(--green);
+}
+
+/* ── MOBILE ── */
+@media (max-width: 640px) {
+  .navbar { padding: 0 16px; }
+  .nav-stats { gap: 10px; }
+  .nav-stat span:not(.icon):not(.val) { display: none; }
+  .section-header { padding: 40px 16px 16px; }
+  .filters { padding: 0 16px; }
+  .qa-list { padding: 0 16px 60px; }
+  .qa-answer-inner { padding: 0 16px 16px 40px; }
+  .qa-question { padding: 14px 16px; }
+}
+
+/* ── ANIMATIONS ── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.qa-card {
+  animation: fadeUp 0.35s ease both;
+}
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="logo">ROBOPREP<span>.io</span></a>
+  <div class="nav-stats">
+    <div class="nav-stat"><span class="icon">⚡</span><span>XP</span><span class="val" id="nav-xp">0</span></div>
+    <div class="nav-stat"><span class="icon">🔥</span><span>Streak</span><span class="val" id="nav-streak">0</span></div>
+    <div class="nav-stat"><span class="icon">✓</span><span class="val" id="nav-done">0</span><span>done</span></div>
+  </div>
+</nav>
+
+<div class="section-header">
+  <a href="index.html" class="back-link">← Back to Dashboard</a>
+  <div class="section-tag">SECTION 01</div>
+  <h1 class="section-title">Controls Engineering</h1>
+  <p class="section-desc">PID, MPC, LQR, impedance control, Jacobians, whole-body controllers, QP solvers, and everything you need for robotics controls interviews.</p>
+  <div class="progress-wrap">
+    <span class="progress-text" id="prog-text">0 / 20</span>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="prog-bar" style="width:0%"></div></div>
+  </div>
+</div>
+
+<div class="filters">
+  <button class="filter-chip active" data-diff="all">All</button>
+  <button class="filter-chip" data-diff="core">Core</button>
+  <button class="filter-chip" data-diff="intermediate">Intermediate</button>
+  <button class="filter-chip" data-diff="advanced">Advanced</button>
+  <input type="text" class="search-input" placeholder="Search questions..." id="search-input">
+</div>
+
+<div class="qa-list" id="qa-list"></div>
+
+<script>
+const SECTION_KEY = 'controls';
+
+const QUESTIONS = [
+  {
+    q: "What is PID control? Walk me through each term and how you'd tune it on a real robot.",
+    diff: "core",
+    a: `<p><b>PID stands for Proportional-Integral-Derivative control</b> — it's the most widely used feedback controller in robotics and industry. Each term addresses a different aspect of tracking error:</p>
+
+<p><b>P (Proportional):</b> The output is proportional to the current error. If I'm controlling a joint to reach 90° and it's at 60°, the error is 30° and the P-term pushes proportionally. Higher <code>Kp</code> means faster response but can cause overshoot and oscillation.</p>
+
+<p><b>I (Integral):</b> This accumulates error over time. It eliminates <b>steady-state error</b> — for example, if gravity creates a constant offset that P alone can't overcome, the I-term builds up and pushes through it. But it's slow and can cause <b>integral windup</b> if the actuator saturates.</p>
+
+<p><b>D (Derivative):</b> This reacts to the rate of change of error. It acts as a damper — if the error is shrinking fast, D reduces the output to prevent overshoot. It's essentially predictive.</p>
+
+<span class="formula">u(t) = Kp·e(t) + Ki·∫e(τ)dτ + Kd·(de/dt)</span>
+
+<p><b>Tuning in practice:</b> On a real robot, I start with Kp only, increase it until I get oscillation, then back off ~60%. Then I add Kd to damp the oscillation. I only add Ki if there's persistent steady-state error. For the Franka Panda in my PPO project, I used joint-space PD (no I-term) because the RL policy handled steady-state corrections.</p>
+
+<span class="key-point">Key insight: In robotics, we often skip the I-term entirely (PD control) because integral windup is dangerous on physical hardware, and feed-forward terms (like gravity compensation) handle steady-state errors better.</span>
+
+<span class="interview-tip">🎯 Interview tip: Always mention anti-windup when discussing PID. Say "I'd clamp the integral term or use back-calculation anti-windup to prevent saturation issues." This shows practical experience.</span>`
+  },
+  {
+    q: "Explain Model Predictive Control (MPC). Why would you choose it over PID?",
+    diff: "core",
+    a: `<p><b>MPC is an optimization-based controller</b> that, at every timestep, solves a finite-horizon optimal control problem and applies only the first control action. Then it shifts the horizon forward and re-solves — this is the <b>receding horizon</b> principle.</p>
+
+<p>The formulation is: minimize a cost function (typically quadratic on state error and control effort) subject to the system dynamics as equality constraints and any physical limits as inequality constraints.</p>
+
+<span class="formula">min Σ(xₖ - x_ref)ᵀ Q (xₖ - x_ref) + uₖᵀ R uₖ
+s.t. xₖ₊₁ = f(xₖ, uₖ)     [dynamics]
+     u_min ≤ uₖ ≤ u_max     [actuator limits]
+     x_min ≤ xₖ ≤ x_max     [state constraints]</span>
+
+<p><b>Why MPC over PID?</b></p>
+<p>PID is reactive — it only sees current error. MPC is proactive — it predicts future states and optimizes over a horizon. This means MPC can handle constraints explicitly (joint limits, torque limits, friction cones), anticipate future reference changes, and coordinate multiple joints simultaneously.</p>
+
+<p>In my <b>BHEEMA project</b>, I used centroidal MPC running at 16 Hz for the Unitree G1. PID alone can't handle bipedal walking because you need to plan center-of-mass trajectories while respecting friction cone constraints at the feet. The MPC solved a QP at each step using <code>OSQP</code>, producing optimal ground reaction forces that a lower-level whole-body controller then tracked at 200 Hz.</p>
+
+<span class="key-point">Key insight: MPC's superpower is constraint handling. Any time you have actuator limits, contact constraints, or need to coordinate multiple DOFs with lookahead, MPC beats PID.</span>
+
+<span class="interview-tip">🎯 Interview tip: Mention the computational cost tradeoff — MPC is more expensive per step than PID. Say "I'd use PID for simple single-joint tracking and MPC when I need constraint satisfaction or multi-step planning, like locomotion."</span>`
+  },
+  {
+    q: "Derive or explain the LQR controller. How do Q and R matrices affect behavior?",
+    diff: "intermediate",
+    a: `<p><b>LQR (Linear Quadratic Regulator)</b> is the optimal state-feedback controller for a linear system with a quadratic cost. Given a linear system <code>ẋ = Ax + Bu</code>, LQR finds the gain matrix K that minimizes:</p>
+
+<span class="formula">J = ∫₀^∞ (xᵀQx + uᵀRu) dt</span>
+
+<p>The solution is <code>u = -Kx</code> where <code>K = R⁻¹BᵀP</code>, and P is the solution to the <b>continuous algebraic Riccati equation (CARE)</b>:</p>
+
+<span class="formula">AᵀP + PA - PBR⁻¹BᵀP + Q = 0</span>
+
+<p><b>Q and R tuning:</b></p>
+<p><b>Q</b> penalizes state deviation — making Q larger means "I care more about tracking accuracy." If I increase Q₁₁ (penalizing position error), the controller will aggressively minimize position error, potentially at the cost of large control inputs.</p>
+
+<p><b>R</b> penalizes control effort — making R larger means "use less actuator effort." This produces a more conservative, energy-efficient controller but with slower convergence.</p>
+
+<p>The ratio Q/R is what matters. Doubling both Q and R gives the same controller. In practice, I start with Q = identity and R = identity, then scale Q up for states I want tracked tightly and R up for actuators I want to protect.</p>
+
+<span class="key-point">Key insight: LQR is actually MPC with an infinite horizon and no constraints on a linear system. If you linearize a nonlinear system and don't need constraints, LQR gives the optimal answer analytically — no online optimization needed.</span>
+
+<span class="interview-tip">🎯 Interview tip: If asked "LQR vs MPC?", say "LQR is the analytical solution when the system is linear and unconstrained. MPC is the numerical solution when you have nonlinearities, constraints, or a finite horizon. MPC with a quadratic cost on a linear system converges to LQR as the horizon goes to infinity."</span>`
+  },
+  {
+    q: "What is impedance control and how does it differ from position and force control?",
+    diff: "intermediate",
+    a: `<p><b>Impedance control</b> regulates the dynamic relationship between force and motion, rather than controlling either one directly. Instead of commanding "go to position X" or "apply force F," you command "behave like a mass-spring-damper system when interacting with the environment."</p>
+
+<span class="formula">F = M_d · (ẍ_d - ẍ) + D_d · (ẋ_d - ẋ) + K_d · (x_d - x)
+where M_d, D_d, K_d are desired inertia, damping, stiffness</span>
+
+<p><b>Position control</b> drives the robot to a target pose regardless of contact forces — it's stiff. If the robot hits an obstacle, it pushes through. <b>Force control</b> directly regulates contact forces but requires a force sensor and is sensitive to loss of contact (when not touching anything, force control is undefined).</p>
+
+<p><b>Impedance control</b> is the sweet spot: in free space it behaves like position control (spring pulls toward target), but on contact it becomes compliant. You tune the stiffness K_d — high stiffness for precise positioning, low stiffness for safe human interaction.</p>
+
+<p>In <b>BHEEMA</b>, I used impedance control in the whole-body controller layer. The feet needed to be stiff in the vertical direction (to support weight) but compliant in the horizontal direction (to absorb ground irregularities). This was achieved by setting different K_d values per axis in operational space.</p>
+
+<span class="key-point">Key insight: Impedance control doesn't require a force sensor — it modulates the robot's apparent dynamics. Admittance control is the dual: it takes force input (from a sensor) and outputs motion. Use impedance for low-inertia robots, admittance for high-inertia ones.</span>
+
+<span class="interview-tip">🎯 Interview tip: Bring up the distinction between impedance and admittance control unprompted. Most candidates conflate them. Say "Impedance control takes motion error and outputs force; admittance control takes force error and outputs motion. The choice depends on the robot's natural impedance."</span>`
+  },
+  {
+    q: "Explain the Jacobian in robotics. What is it used for and what happens at singularities?",
+    diff: "core",
+    a: `<p>The <b>Jacobian matrix J</b> maps joint velocities to end-effector velocities in task space:</p>
+
+<span class="formula">ẋ = J(q) · q̇
+where ẋ ∈ ℝ⁶ (linear + angular velocity), q̇ ∈ ℝⁿ (joint velocities)</span>
+
+<p>It's the fundamental tool for connecting joint space and task space. The Jacobian has three critical uses:</p>
+
+<p><b>1. Velocity mapping:</b> Forward — given joint velocities, compute end-effector velocity. Inverse — given a desired end-effector velocity, compute required joint velocities: <code>q̇ = J⁻¹ẋ</code> (or J† pseudoinverse for redundant robots).</p>
+
+<p><b>2. Force mapping:</b> The transpose maps task-space forces to joint torques: <code>τ = Jᵀ · F</code>. This is used in operational-space control and gravity compensation.</p>
+
+<p><b>3. Singularity analysis:</b> When <code>det(J) = 0</code> (or J loses rank), the robot loses a degree of freedom in task space — some directions become unreachable. Near singularities, <code>J⁻¹</code> produces huge joint velocities for small task-space motions.</p>
+
+<p><b>Handling singularities:</b> Use the <b>damped pseudoinverse</b> (Levenberg-Marquardt): <code>J† = Jᵀ(JJᵀ + λ²I)⁻¹</code>. The damping factor λ trades off tracking accuracy for joint velocity smoothness near singular configurations.</p>
+
+<p>In <b>BHEEMA's WBC</b>, I used Pinocchio to compute analytical Jacobians for the feet and center of mass. The distinction matters: <b>analytical Jacobian</b> uses Euler angle rates, while the <b>geometric Jacobian</b> uses angular velocity. Pinocchio gives the geometric one by default, and the frame mismatch between Pinocchio and MuJoCo was exactly where the bug in my project came from.</p>
+
+<span class="key-point">Key insight: For redundant manipulators (n > 6 DOF), J is non-square. You use the pseudoinverse for the primary task and project secondary objectives into the null space: q̇ = J†ẋ + (I - J†J)q̇₀.</span>
+
+<span class="interview-tip">🎯 Interview tip: If asked about the Jacobian, draw the mapping diagram: joint space ↔ task space. Mention velocity mapping, force mapping (transpose), and singularities. Bonus points for mentioning null-space control for redundant robots.</span>`
+  },
+  {
+    q: "What is the difference between operational-space control and joint-space control?",
+    diff: "intermediate",
+    a: `<p><b>Joint-space control</b> defines the task in terms of joint angles: "move joint 3 to 45°." The controller operates on joint-level errors and produces joint torques directly. It's simple, decoupled (each joint has its own PD loop), and doesn't need the Jacobian.</p>
+
+<p><b>Operational-space control</b> defines the task in Cartesian/task space: "move the end-effector to position (x,y,z) with orientation R." The controller computes errors in task space and maps them to joint torques through the Jacobian and the dynamics.</p>
+
+<span class="formula">τ = Jᵀ · Λ · (ẍ_d + Kp·e_x + Kd·ė_x) + N·τ_null + g(q)
+where Λ = (JM⁻¹Jᵀ)⁻¹ is the task-space inertia matrix
+N = I - JᵀΛJM⁻¹ is the null-space projector</span>
+
+<p><b>When to use which:</b> Joint-space is fine when the task is defined in joint coordinates (like maintaining a home pose). Operational-space is necessary when the task is defined in Cartesian space (reaching a point, following a trajectory, compliant interaction). For locomotion, I use both: the feet are controlled in operational space (Cartesian positions matter for ground contact) while the posture is regulated in joint space through the null space.</p>
+
+<p>In <b>BHEEMA's WBC</b>, the centroidal MPC output desired ground reaction forces in Cartesian space. The whole-body controller used operational-space formulation to map these into joint torques, with a null-space task for posture regulation — all computed using Pinocchio's analytical Jacobians at 200 Hz.</p>
+
+<span class="key-point">Key insight: Operational-space control naturally decouples task-space dynamics — the task-space inertia matrix Λ makes the end-effector behave like a unit mass in task space, regardless of the robot's actual inertia. This is called dynamic decoupling.</span>
+
+<span class="interview-tip">🎯 Interview tip: Mention that operational-space control is sometimes called "task-space inverse dynamics." Connect it to your project: "In BHEEMA, I used operational-space control for the feet and null-space projection for posture — this is the standard WBC architecture for humanoids."</span>`
+  },
+  {
+    q: "Explain gravity compensation. Why is it important and how is it implemented?",
+    diff: "core",
+    a: `<p><b>Gravity compensation</b> is a feed-forward torque that cancels the gravitational load on each joint, so the feedback controller only has to deal with tracking errors — not fighting gravity constantly.</p>
+
+<span class="formula">τ_gravity = g(q)   [from the robot dynamics: M(q)q̈ + C(q,q̇)q̇ + g(q) = τ]
+τ_total = τ_feedback + g(q)</span>
+
+<p>Without gravity compensation, a PD controller needs a large Kp just to hold the robot's own weight, which makes it stiff and oscillatory. With gravity compensation, the PD gains only need to handle dynamic tracking, so you can use much lower gains for smoother, more compliant motion.</p>
+
+<p><b>Implementation:</b> Compute <code>g(q)</code> using the recursive Newton-Euler algorithm or a dynamics library. In my work, I use <b>Pinocchio</b> which gives <code>g(q)</code> with a single call to <code>pinocchio.computeGeneralizedGravity(model, data, q)</code>. This runs in microseconds even for a 30+ DOF humanoid.</p>
+
+<p>In <b>BHEEMA</b>, gravity compensation was a core component of the WBC. Without it, the PD tracking of foot trajectories would have required extremely high gains, causing vibrations and instability. With it, I could keep gains low and let the impedance controller handle interaction forces smoothly.</p>
+
+<span class="key-point">Key insight: Gravity compensation is the simplest and most impactful feed-forward term you can add. It's the difference between a robot that shakes trying to hold its arm up and one that floats effortlessly. Always implement it before tuning PD gains.</span>
+
+<span class="interview-tip">🎯 Interview tip: Frame gravity compensation as "model-based feed-forward." Then naturally transition to computed torque control: "If I also compensate for Coriolis and inertial terms, I get full computed torque control, which linearizes the system completely."</span>`
+  },
+  {
+    q: "What is computed torque control (inverse dynamics control)?",
+    diff: "intermediate",
+    a: `<p><b>Computed torque control</b> uses the full robot dynamics model to cancel all nonlinear terms, converting the nonlinear robot into a set of decoupled double integrators that are trivial to control.</p>
+
+<p>The robot dynamics are: <code>M(q)q̈ + C(q,q̇)q̇ + g(q) = τ</code></p>
+
+<p>The computed torque law is:</p>
+<span class="formula">τ = M(q) · (q̈_d + Kp·(q_d - q) + Kd·(q̇_d - q̇)) + C(q,q̇)q̇ + g(q)</span>
+
+<p>Substituting into the dynamics, the M, C, and g terms cancel (assuming perfect model), leaving:</p>
+<span class="formula">q̈_err + Kd·q̇_err + Kp·q_err = 0</span>
+
+<p>This is a linear second-order system! You've turned a complex nonlinear robot into something you can control with simple PD gains. The error dynamics are fully decoupled — each joint is independent.</p>
+
+<p><b>The catch:</b> It requires an accurate dynamics model. Model errors (wrong masses, inertias, friction) mean the cancellation is imperfect, and residual nonlinearities leak through. In practice, you combine computed torque with robust feedback to handle model uncertainty.</p>
+
+<span class="key-point">Key insight: Gravity compensation is a special case of computed torque where you only cancel g(q). Full computed torque also cancels M(q) and C(q,q̇) — this is more accurate but requires velocity measurements and a good inertial model.</span>
+
+<span class="interview-tip">🎯 Interview tip: If they ask "what's the limitation?", say model accuracy. Then pivot: "For locomotion, I prefer MPC + WBC over pure computed torque because MPC handles constraints and planned contact sequences, which computed torque alone can't do."</span>`
+  },
+  {
+    q: "Explain controllability and observability. Why do they matter for controller design?",
+    diff: "intermediate",
+    a: `<p><b>Controllability</b> answers: "Can I drive the system from any state to any other state using the available inputs?" A system <code>ẋ = Ax + Bu</code> is controllable if the <b>controllability matrix</b> has full rank:</p>
+
+<span class="formula">C = [B | AB | A²B | ... | Aⁿ⁻¹B],  rank(C) = n</span>
+
+<p><b>Observability</b> answers: "Can I determine the full internal state from the outputs alone?" A system with output <code>y = Cx</code> is observable if the <b>observability matrix</b> has full rank:</p>
+
+<span class="formula">O = [C; CA; CA²; ...; CAⁿ⁻¹],  rank(O) = n</span>
+
+<p><b>Why they matter:</b></p>
+<p>If a system is not controllable, some states are unreachable — no controller (PID, LQR, MPC) can drive those states. LQR specifically requires controllability; the Riccati equation won't have a stabilizing solution otherwise.</p>
+
+<p>If a system is not observable, you can't design a state estimator (Kalman filter, observer) for the unobservable states. You can't control what you can't estimate.</p>
+
+<p><b>Practical example:</b> A quadruped with 4 contact sensors and an IMU — is the full state (all joint positions, velocities, body pose) observable from these sensors? If not, which states are unobservable? This directly determines what state estimator I can build and which states I need to add sensors for.</p>
+
+<span class="key-point">Key insight: Controllability and observability are duals. A system is controllable if and only if its dual (transposed) system is observable. In practice, most well-designed robots are both controllable and observable, but specific sensor/actuator failures can break either property.</span>
+
+<span class="interview-tip">🎯 Interview tip: Don't just recite the rank test. Give a physical example: "A differential-drive robot can't move sideways — the sideways state is not directly controllable. But it's still controllable in the Lie algebraic sense because it can reach any position through a sequence of moves."</span>`
+  },
+  {
+    q: "What is a state-space representation and why is it preferred over transfer functions in robotics?",
+    diff: "core",
+    a: `<p><b>State-space</b> represents a system using first-order matrix differential equations:</p>
+
+<span class="formula">ẋ = Ax + Bu    (state equation)
+y = Cx + Du    (output equation)</span>
+
+<p>where x is the state vector, u is the input, y is the output. A, B, C, D are matrices.</p>
+
+<p><b>Transfer functions</b> represent the input-output relationship in the Laplace domain: <code>G(s) = Y(s)/U(s)</code>. They work well for single-input, single-output (SISO) linear systems.</p>
+
+<p><b>Why state-space wins in robotics:</b></p>
+<p>1. <b>MIMO:</b> Robots have multiple joints, multiple sensors — state-space handles multi-input multi-output naturally. Transfer function matrices get messy fast.</p>
+<p>2. <b>Nonlinear systems:</b> State-space generalizes to <code>ẋ = f(x, u)</code>. Transfer functions only work for linear time-invariant systems.</p>
+<p>3. <b>Internal states:</b> Transfer functions only capture input-output behavior. State-space exposes all internal states, which is essential for state estimation (Kalman filter) and optimal control (LQR, MPC).</p>
+<p>4. <b>Computational tools:</b> Every modern control library (MATLAB, Drake, CasADi, Pinocchio) works in state-space. Discretization, simulation, and optimization all operate on state vectors.</p>
+
+<span class="key-point">Key insight: Transfer functions are still useful for frequency-domain analysis (Bode plots, stability margins) and simple loop shaping. But any time you're doing estimation, optimization, or multi-DOF control, you need state-space.</span>
+
+<span class="interview-tip">🎯 Interview tip: Say "I default to state-space because I'm usually dealing with multi-DOF nonlinear systems, but I still use Bode analysis to verify stability margins on individual loops when debugging."</span>`
+  },
+  {
+    q: "Describe the whole-body controller (WBC) architecture for a bipedal humanoid.",
+    diff: "advanced",
+    a: `<p>The <b>WBC architecture</b> is a hierarchical control framework that breaks the full-body control problem into layers running at different rates:</p>
+
+<p><b>Layer 1 — Gait Planner (1–5 Hz):</b> Decides footstep locations and timing (when each foot lifts and lands). Provides the reference contact schedule to the MPC layer.</p>
+
+<p><b>Layer 2 — Centroidal MPC (10–30 Hz):</b> Plans the center-of-mass trajectory and ground reaction forces (GRFs). Uses the <b>Single Rigid Body Dynamics (SRBD)</b> model — treats the entire robot as one rigid body at the CoM. Solves a QP minimizing CoM tracking error subject to friction cone constraints at each foot.</p>
+
+<span class="formula">SRBD: m·ẍ_com = Σfᵢ + mg,  I·ω̇ = Σ(rᵢ × fᵢ)
+s.t. friction cones: |fᵢ_tangential| ≤ μ·fᵢ_normal</span>
+
+<p><b>Layer 3 — Whole-Body Controller (100–500 Hz):</b> Takes the desired GRFs and CoM trajectory from MPC and maps them to individual joint torques using the full rigid-body dynamics. This layer uses the Jacobian to convert task-space forces to joint torques, adds gravity compensation, and uses null-space projection for posture regulation.</p>
+
+<span class="formula">τ = Jᵀ_feet · f_desired + J_com_ᵀ · f_com + N · τ_posture + g(q)</span>
+
+<p>In <b>BHEEMA</b>, I implemented exactly this: centroidal MPC at 16 Hz using OSQP, with friction cone constraints linearized as 4-sided pyramids. The WBC ran at 200 Hz using Pinocchio for Jacobians and gravity computation. The impedance terms in the WBC provided compliance at the feet.</p>
+
+<p>The key bug I fixed was a <b>Pinocchio↔MuJoCo frame mismatch</b>: Pinocchio uses a different convention for the local body frames than MuJoCo, so the Jacobians were being computed in the wrong frame. The fix was to explicitly transform between the two coordinate conventions before passing forces to the simulator.</p>
+
+<span class="key-point">Key insight: The hierarchical separation is essential — centroidal MPC is fast because SRBD is low-dimensional (6 DOF), while the WBC handles the full robot dynamics but only needs to track the MPC output, not plan ahead. This is division of labor: planning at low rate, tracking at high rate.</span>
+
+<span class="interview-tip">🎯 Interview tip: Draw the three-layer diagram. Interviewers love this. Label the rates: gait planner (1-5 Hz) → centroidal MPC (10-30 Hz) → WBC (100-500 Hz). Mention that each layer sees a progressively more detailed model of the robot.</span>`
+  },
+  {
+    q: "What are friction cone constraints and why are they critical for locomotion?",
+    diff: "intermediate",
+    a: `<p>A <b>friction cone</b> defines the set of forces that a foot can apply to the ground without slipping. For a contact point on a flat surface with friction coefficient μ, the tangential force must satisfy:</p>
+
+<span class="formula">√(fₓ² + f_y²) ≤ μ · f_z    (Coulomb friction)
+f_z ≥ 0                       (no pulling on ground)</span>
+
+<p>This defines a cone in force space with half-angle arctan(μ). Any ground reaction force must lie inside this cone, or the foot slips.</p>
+
+<p><b>Why critical for locomotion:</b> During walking, the robot pushes off the ground to move forward and stay balanced. If the planner commands a force outside the friction cone, the foot slips and the robot falls. MPC must enforce friction cone constraints at every contact point to generate physically feasible motions.</p>
+
+<p><b>In practice (for QP solvers):</b> The circular cone is nonlinear, so we approximate it with a <b>polyhedral cone</b> — typically a 4-sided pyramid. This converts the constraint into linear inequalities that QP solvers like OSQP can handle efficiently:</p>
+
+<span class="formula">|fₓ| ≤ μ/√2 · f_z
+|f_y| ≤ μ/√2 · f_z</span>
+
+<p>In <b>BHEEMA</b>, I used 4-sided friction pyramids in the centroidal MPC. The friction coefficient μ was estimated for the simulated ground surface in MuJoCo (set via <code>friction</code> parameter in the MJCF geom).</p>
+
+<span class="key-point">Key insight: Friction cones are why walking is hard for robots. You have limited tangential force to accelerate the CoM, and you can't pull on the ground. All locomotion is fundamentally limited by the friction cones at the feet.</span>
+
+<span class="interview-tip">🎯 Interview tip: Mention the linearization from cone to pyramid and why — "I linearize the friction cone to a 4-sided pyramid so it fits into a QP. More sides give better approximation but more constraints. 4 is the standard for real-time MPC."</span>`
+  },
+  {
+    q: "Explain the Zero Moment Point (ZMP) and its role in dynamic walking.",
+    diff: "advanced",
+    a: `<p>The <b>Zero Moment Point (ZMP)</b> is the point on the ground where the total reaction force produces no horizontal moment — equivalently, the net ground reaction torque about this point has zero tangential components.</p>
+
+<span class="formula">ZMP_x = (Σ fᵢ_z · pᵢ_x - Σ τᵢ_y) / Σ fᵢ_z
+ZMP_y = (Σ fᵢ_z · pᵢ_y + Σ τᵢ_x) / Σ fᵢ_z</span>
+
+<p><b>The ZMP stability criterion:</b> If the ZMP stays within the <b>support polygon</b> (convex hull of foot contacts), the robot won't tip over. If the ZMP reaches the edge, the robot starts to rotate about that edge — it's falling.</p>
+
+<p><b>ZMP-based walking:</b> Classical bipedal locomotion (Honda ASIMO era) plans a CoM trajectory such that the ZMP always stays within the support polygon. This is conservative — the robot walks flat-footed and can't do dynamic motions like running where both feet leave the ground.</p>
+
+<p><b>Limitations:</b> ZMP only works on flat ground and assumes rigid contacts. It's overly conservative — humans routinely walk with the ZMP at the edge of their feet (that's what makes walking dynamic). Modern approaches use <b>centroidal dynamics</b> instead, which handles arbitrary contacts and allows more dynamic motions.</p>
+
+<p>In <b>BHEEMA</b>, I chose centroidal MPC over ZMP-based planning specifically because centroidal dynamics is more general — it handles the full 6D wrench balance and doesn't assume flat ground. But understanding ZMP is still important because many legged robot papers reference it.</p>
+
+<span class="key-point">Key insight: ZMP is essentially a 2D projection of the full 6D balance problem. Centroidal dynamics (what I used in BHEEMA) is the 3D generalization that handles non-coplanar contacts, angular momentum, and dynamic motions.</span>
+
+<span class="interview-tip">🎯 Interview tip: Show you understand the historical progression: "ZMP-based planning was the standard for 20 years, but it's limited to quasi-static flat-ground walking. Modern humanoids use centroidal MPC which handles the full dynamics. I implemented the modern approach in my project."</span>`
+  },
+  {
+    q: "What is null-space control for redundant manipulators?",
+    diff: "advanced",
+    a: `<p>A <b>redundant manipulator</b> has more DOFs than needed for the task (e.g., 7-DOF arm for a 6D end-effector task). This means there are infinitely many joint configurations that achieve the same end-effector pose. The <b>null space</b> of the Jacobian is the set of joint motions that produce zero end-effector motion.</p>
+
+<span class="formula">q̇ = J† · ẋ_desired + (I - J†J) · q̇_secondary
+        ↑ primary task       ↑ null-space projection</span>
+
+<p><code>J†</code> is the pseudoinverse of J, and <code>(I - J†J)</code> projects any joint velocity into the null space. The secondary task <code>q̇_secondary</code> could be anything: avoiding joint limits, minimizing joint velocities, maintaining a preferred posture, or avoiding obstacles.</p>
+
+<p><b>Task hierarchy:</b> You can stack multiple tasks in priority order. Task 1 (highest priority) is solved exactly. Task 2 is projected into Task 1's null space — it's satisfied as well as possible without disturbing Task 1. Task 3 goes into the null space of both, and so on.</p>
+
+<p>In <b>BHEEMA's WBC</b>, the task hierarchy was: (1) maintain contact forces at the feet (highest priority), (2) track CoM trajectory, (3) regulate upper-body posture (lowest priority, in the null space). This meant the robot could swing its arms to maintain balance without disturbing the foot contacts.</p>
+
+<span class="key-point">Key insight: Null-space control is what makes redundancy useful rather than problematic. Without it, the pseudoinverse gives the minimum-norm solution, which might drive the robot toward joint limits or singularities. With null-space tasks, you actively use the extra DOFs.</span>
+
+<span class="interview-tip">🎯 Interview tip: Connect null-space to your humanoid work: "The Unitree G1 has more DOFs than needed for locomotion, so I used null-space projection to keep the torso upright and arms in a natural configuration while the legs tracked the MPC commands."</span>`
+  },
+  {
+    q: "What QP solvers have you used and why do they matter for real-time MPC?",
+    diff: "advanced",
+    a: `<p><b>QP (Quadratic Programming)</b> is the core computation in most MPC implementations. At each control step, the MPC solves:</p>
+
+<span class="formula">min  ½xᵀHx + fᵀx
+s.t. Ax ≤ b    (inequality constraints)
+     A_eq·x = b_eq  (equality constraints)</span>
+
+<p><b>Solver choice matters</b> because real-time MPC has a hard deadline — if the solver doesn't finish before the next control step, you miss the deadline and the robot is running open-loop.</p>
+
+<p><b>OSQP</b> (Operator Splitting QP): What I used in BHEEMA. It's an ADMM-based solver — very fast for sparse problems, warm-startable, and has predictable iteration counts. Great for embedded/real-time because it doesn't need matrix factorization at every step. The downside: it's an iterative solver, so accuracy depends on iteration count.</p>
+
+<p><b>qpOASES:</b> An active-set solver. Gives exact solutions (up to numerical precision) and is excellent when the problem size is small and the active set doesn't change much between solves. Used widely in the MPC community. Less scalable than OSQP for large problems.</p>
+
+<p><b>Other options:</b> ECOS (interior-point, for SOCPs), Clarabel (Rust-based, modern), ProxQP (from the Pinocchio team, designed for robotics).</p>
+
+<p>In BHEEMA, OSQP at 16 Hz meant I had ~62ms per solve. The centroidal MPC problem was small enough (6 DOF × horizon steps + contact forces) that OSQP converged well within this budget with warm-starting from the previous solution.</p>
+
+<span class="key-point">Key insight: Warm-starting is crucial for real-time MPC. Since consecutive QP problems are similar (receding horizon), initializing with the previous solution drastically reduces iterations. OSQP's warm-start is why it works at 16 Hz.</span>
+
+<span class="interview-tip">🎯 Interview tip: Name specific solvers and their tradeoffs. "I used OSQP because it's warm-startable and handles sparse problems efficiently. For smaller problems with hard accuracy requirements, I'd consider qpOASES." This shows you've actually worked with these tools.</span>`
+  },
+  {
+    q: "What is gain scheduling and when would you use it?",
+    diff: "intermediate",
+    a: `<p><b>Gain scheduling</b> is a technique for controlling nonlinear systems by using different controller gains in different operating regions. You design multiple linear controllers, each tuned for a specific operating point, and interpolate between them based on the current state.</p>
+
+<p><b>Example:</b> A quadrotor at hover needs different PID gains than when it's flying at high speed. At hover, you want aggressive attitude control. At high speed, aerodynamic effects change the plant dynamics, so you need different gains to stay stable. A gain-scheduled controller smoothly transitions between these tunings based on airspeed.</p>
+
+<p><b>Implementation:</b></p>
+<p>1. Identify operating points that span the operating envelope</p>
+<p>2. Linearize the system at each operating point</p>
+<p>3. Design an optimal controller (LQR, pole placement) for each linear model</p>
+<p>4. Interpolate gains between operating points based on a scheduling variable (speed, altitude, configuration, etc.)</p>
+
+<p><b>When to use:</b> When the system is nonlinear but you can identify a scheduling variable that captures how the dynamics change. It's simpler than full nonlinear control (MPC) but more capable than a single fixed-gain controller.</p>
+
+<p><b>Limitations:</b> No formal stability guarantees between operating points. If the scheduling variable changes fast, the interpolated gains might not stabilize the system. For fast-varying systems, MPC or adaptive control is better.</p>
+
+<span class="key-point">Key insight: Gain scheduling is essentially a lookup table of controllers indexed by operating condition. It's the bridge between simple PID (one set of gains) and full nonlinear MPC (recomputes optimal control every step). Most aerospace and automotive systems use it.</span>
+
+<span class="interview-tip">🎯 Interview tip: Give a concrete robotics example. "For a legged robot, I might gain-schedule the PD gains based on gait phase — stance phase needs stiffer gains than swing phase because the dynamics are fundamentally different during ground contact."</span>`
+  },
+  {
+    q: "Explain DH parameters vs Product of Exponentials. When would you use each?",
+    diff: "advanced",
+    a: `<p>Both are methods for computing the <b>forward kinematics</b> of a robot — mapping joint angles to end-effector pose. They use different mathematical representations.</p>
+
+<p><b>Denavit-Hartenberg (DH):</b> Assigns a coordinate frame to each link using 4 parameters per joint: d (link offset), θ (joint angle), a (link length), α (link twist). The forward kinematics is a product of homogeneous transformation matrices:</p>
+
+<span class="formula">T₀ₙ = A₁(θ₁) · A₂(θ₂) · ... · Aₙ(θₙ)
+where Aᵢ = Rot_z(θᵢ) · Trans_z(dᵢ) · Trans_x(aᵢ) · Rot_x(αᵢ)</span>
+
+<p><b>Product of Exponentials (PoE):</b> Uses screw theory. Each joint is described by a twist (screw axis), and the FK is:</p>
+
+<span class="formula">T₀ₙ = e^{[S₁]θ₁} · e^{[S₂]θ₂} · ... · e^{[Sₙ]θₙ} · M
+where Sᵢ is the screw axis, M is the home configuration</span>
+
+<p><b>Tradeoffs:</b></p>
+<p><b>DH</b> is the classic method — every textbook uses it, most URDF/MJCF parsers use DH internally, and it's well-established. But frame assignment can be ambiguous (modified vs standard DH), and it forces a specific frame placement on each link.</p>
+
+<p><b>PoE</b> is more elegant mathematically — no arbitrary frame assignment, works naturally with screw theory and Lie groups, and is the foundation of modern libraries like Pinocchio. It's also easier to derive Jacobians analytically from the twist representation.</p>
+
+<p>In practice, <b>Pinocchio uses PoE internally</b>, which is one reason it's fast and numerically clean. When I define a robot in URDF/MJCF, the parser converts to PoE automatically. I only manually compute DH when a textbook or paper specifies parameters that way.</p>
+
+<span class="key-point">Key insight: PoE is strictly more general than DH — it handles any joint type (prismatic, revolute, helical) uniformly through screw theory. DH is a special case that only handles revolute and prismatic joints with specific frame placement rules.</span>
+
+<span class="interview-tip">🎯 Interview tip: Say "I understand both, but I prefer Product of Exponentials because it integrates cleanly with Lie group methods and is what modern libraries like Pinocchio use under the hood." This signals you're current, not just textbook-trained.</span>`
+  },
+  {
+    q: "What is Lyapunov stability analysis? How would you use it in robotics?",
+    diff: "advanced",
+    a: `<p><b>Lyapunov stability</b> is a method for proving a system is stable <b>without solving the differential equations</b>. You construct a scalar energy-like function V(x) — the <b>Lyapunov function</b> — and show its time derivative is non-positive along system trajectories.</p>
+
+<p><b>Conditions for stability of equilibrium x=0:</b></p>
+<span class="formula">1. V(0) = 0  and  V(x) > 0  for x ≠ 0     [positive definite]
+2. V̇(x) ≤ 0                                   [stable]
+   V̇(x) < 0  for x ≠ 0                        [asymptotically stable]</span>
+
+<p><b>Intuition:</b> V(x) is like a generalized energy. If energy is always positive and always decreasing, the system must converge to zero energy (the equilibrium). It's a brilliant concept because you don't need to solve the dynamics — you just need to find one function that satisfies these conditions.</p>
+
+<p><b>Robotics applications:</b></p>
+<p>1. <b>Proving controller stability:</b> For a PD controller with gravity compensation, V = ½q̇ᵀMq̇ + ½eᵀKpe (kinetic energy + potential from the spring). Showing V̇ ≤ 0 proves the controller is stable.</p>
+<p>2. <b>Control Lyapunov Functions (CLFs):</b> Design the controller to explicitly make V̇ < 0. This is used in CLF-QP controllers for walking robots — the QP enforces V̇ ≤ -γV as a constraint.</p>
+<p>3. <b>Stability certificates for learned policies:</b> In RL, you can train a neural Lyapunov function alongside the policy to certify stability.</p>
+
+<span class="key-point">Key insight: The hard part is finding V(x). For mechanical systems, total energy is often a natural Lyapunov function. For more complex systems, you might need to search for V computationally (SOS programming, neural Lyapunov methods).</span>
+
+<span class="interview-tip">🎯 Interview tip: Show you can connect theory to practice: "I use Lyapunov analysis to verify my controller designs are stable, and CLF-QP when I need stability guarantees in real-time optimization — for example, ensuring a walking robot doesn't fall by constraining the Lyapunov function decrease rate."</span>`
+  },
+  {
+    q: "Compare regulation vs tracking control problems.",
+    diff: "core",
+    a: `<p><b>Regulation</b> is driving the system to a fixed setpoint and keeping it there. The reference is constant: "hold joint angle at 90°" or "maintain hover at 2m altitude." The error is <code>e = x_ref - x</code> where x_ref doesn't change.</p>
+
+<p><b>Tracking</b> is following a time-varying reference trajectory. The reference changes continuously: "follow this sinusoidal path" or "track a walking gait trajectory." The error is <code>e(t) = x_ref(t) - x(t)</code>.</p>
+
+<p><b>Why the distinction matters:</b></p>
+<p>Regulation is easier — a simple PD controller can regulate to a setpoint, and LQR is designed for regulation. Tracking is harder because the controller must anticipate where the reference is going. A pure feedback controller (PD) always lags behind a moving reference.</p>
+
+<p><b>For good tracking, you need feed-forward:</b></p>
+<span class="formula">u = u_ff(t) + u_fb(e)
+u_ff = inverse_dynamics(x_ref, ẋ_ref, ẍ_ref)   [computed torque for the reference]
+u_fb = Kp·e + Kd·ė                               [PD correction]</span>
+
+<p>The feed-forward term generates the torques needed to follow the reference if there were no disturbances. The feedback term corrects for model errors and perturbations. Without feed-forward, the PD gains need to be very high to track fast trajectories, causing oscillation.</p>
+
+<p>In <b>BHEEMA</b>, the WBC was a tracking controller — it tracked the foot trajectories and CoM trajectory generated by the MPC. The feed-forward came from the dynamics model (gravity compensation + Coriolis), and the feedback was impedance-based PD.</p>
+
+<span class="key-point">Key insight: MPC naturally handles both regulation and tracking because it optimizes over a future horizon. The reference trajectory is built into the cost function, and the optimizer finds the optimal control that tracks it while respecting constraints.</span>
+
+<span class="interview-tip">🎯 Interview tip: Always mention feed-forward when discussing tracking. "Pure feedback tracking has inherent lag. The solution is model-based feed-forward plus feedback correction — that's what computed torque and WBC architectures do."</span>`
+  },
+  {
+    q: "What is centroidal dynamics and the Single Rigid Body Dynamics (SRBD) model?",
+    diff: "advanced",
+    a: `<p><b>Centroidal dynamics</b> describes the motion of a robot's center of mass (CoM) and its aggregate angular momentum, driven by external forces (gravity and contact forces). It abstracts away all the internal joint dynamics.</p>
+
+<span class="formula">Linear:   m · ẍ_com = Σ fᵢ + m·g
+Angular:  L̇ = Σ (pᵢ - x_com) × fᵢ
+where fᵢ are contact forces at positions pᵢ, L is centroidal angular momentum</span>
+
+<p>The <b>Single Rigid Body Dynamics (SRBD)</b> model is a simplification: treat the entire robot as one rigid body with mass m and fixed inertia I at the CoM. This means angular momentum is <code>L = Iω</code> (constant inertia), which makes the dynamics linear in the decision variables (forces and CoM trajectory).</p>
+
+<span class="formula">SRBD assumption: I ≈ constant → L̇ = I·ω̇ = Σ (pᵢ - x_com) × fᵢ</span>
+
+<p><b>Why this is powerful:</b> The SRBD model has only 6 DOF (3 position + 3 orientation) regardless of how many joints the robot has. A 30-DOF humanoid's centroidal dynamics is still just 6D. This makes the MPC problem small enough to solve in real time.</p>
+
+<p><b>The tradeoff:</b> SRBD assumes the inertia doesn't change much as the robot moves (leg swings don't significantly change the total inertia). This is reasonable for slow walking but breaks down for dynamic motions like running or jumping where the angular momentum from limb swinging is significant.</p>
+
+<p>In <b>BHEEMA</b>, I used SRBD in the centroidal MPC because the Unitree G1's walking gait was quasi-static enough that the constant-inertia assumption held. The QP solved for optimal ground reaction forces at each foot, and these were passed to the WBC for full-body tracking.</p>
+
+<span class="key-point">Key insight: Centroidal dynamics is the key abstraction that makes humanoid MPC tractable. Instead of optimizing over 30+ joint trajectories, you optimize over 6D CoM motion and contact forces. The WBC then handles the high-dimensional mapping to joints.</span>
+
+<span class="interview-tip">🎯 Interview tip: Draw the hierarchy: "Full dynamics (30+ DOF, too slow for MPC) → Centroidal dynamics (6 DOF, fast enough for MPC) → SRBD (linear, solvable as QP). I pick SRBD for real-time performance and accept the constant-inertia approximation."</span>`
+  },
+  {
+    q: "How does anti-windup work in PID control and why is it essential for real robots?",
+    diff: "core",
+    a: `<p><b>Integral windup</b> occurs when the integrator in a PID controller accumulates large error while the actuator is saturated (at its physical limit). Once the error reverses, the bloated integral term causes massive overshoot because it takes a long time to "unwind."</p>
+
+<p><b>Example:</b> A motor has a max torque of 10 Nm. The PID commands 50 Nm (due to a large initial error), but the motor saturates at 10 Nm. The integrator keeps accumulating error even though the extra torque isn't being applied. When the robot finally reaches the setpoint, the integral term is huge and drives it way past.</p>
+
+<p><b>Anti-windup methods:</b></p>
+
+<p><b>1. Clamping (conditional integration):</b> Stop integrating when the output is saturated. Simple and effective.</p>
+<span class="formula">if |u_total| > u_max:
+    don't update integral term</span>
+
+<p><b>2. Back-calculation:</b> Compute the difference between the commanded and saturated output, and feed it back to reduce the integral term:</p>
+<span class="formula">integral += Ki·e·dt + Kb·(u_saturated - u_commanded)·dt
+where Kb is the back-calculation gain (typically Kb = 1/Ti)</span>
+
+<p><b>3. Integral limits:</b> Hard clamp the integral term itself to a maximum value.</p>
+
+<p><b>Why essential for real robots:</b> Every real actuator has torque/force limits. Without anti-windup, the first time the robot encounters a large disturbance or starts from a large initial error, the integrator winds up and the response becomes dangerously oscillatory. On a physical robot, this can damage hardware or cause violent motions.</p>
+
+<span class="key-point">Key insight: Anti-windup is the difference between a PID that works in simulation (unlimited actuators) and one that works on hardware (saturating actuators). It's the #1 thing students forget when going from sim to real.</span>
+
+<span class="interview-tip">🎯 Interview tip: Mention back-calculation specifically — it's the most sophisticated method and shows you've implemented PID seriously. "I use back-calculation anti-windup because it provides a smooth transition in and out of saturation, unlike simple clamping which can cause discontinuities."</span>`
+  }
+];
+
+// ── LOCALSTORAGE HELPERS ──
+function getCompleted() {
+  try { return JSON.parse(localStorage.getItem('roboprep_completed') || '{}'); } catch { return {}; }
+}
+function setCompleted(c) { localStorage.setItem('roboprep_completed', JSON.stringify(c)); }
+function getXP() { return parseInt(localStorage.getItem('roboprep_xp') || '0', 10); }
+function setXP(v) { localStorage.setItem('roboprep_xp', String(v)); }
+function getStreak() {
+  try { return JSON.parse(localStorage.getItem('roboprep_streak') || '{"count":0,"lastDate":""}'); } catch { return {count:0,lastDate:''}; }
+}
+function updateStreak() {
+  const s = getStreak();
+  const today = new Date().toISOString().slice(0,10);
+  if (s.lastDate === today) return;
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+  s.count = (s.lastDate === yesterday) ? s.count + 1 : 1;
+  s.lastDate = today;
+  localStorage.setItem('roboprep_streak', JSON.stringify(s));
+}
+
+// ── RENDERING ──
+let currentFilter = 'all';
+let searchTerm = '';
+
+function refreshNav() {
+  updateStreak();
+  document.getElementById('nav-xp').textContent = getXP();
+  document.getElementById('nav-streak').textContent = getStreak().count;
+  const c = getCompleted();
+  let total = 0;
+  for (const k in c) { if (k.startsWith(SECTION_KEY + '-') && c[k]) total++; }
+  document.getElementById('nav-done').textContent = total;
+}
+
+function refreshProgress() {
+  const c = getCompleted();
+  let done = 0;
+  for (let i = 0; i < QUESTIONS.length; i++) {
+    if (c[SECTION_KEY + '-' + i]) done++;
+  }
+  document.getElementById('prog-text').textContent = done + ' / ' + QUESTIONS.length;
+  document.getElementById('prog-bar').style.width = (done / QUESTIONS.length * 100) + '%';
+}
+
+function renderCards() {
+  const list = document.getElementById('qa-list');
+  list.innerHTML = '';
+  const c = getCompleted();
+
+  QUESTIONS.forEach((item, idx) => {
+    // Filter
+    if (currentFilter !== 'all' && item.diff !== currentFilter) return;
+    if (searchTerm && !item.q.toLowerCase().includes(searchTerm.toLowerCase())) return;
+
+    const key = SECTION_KEY + '-' + idx;
+    const done = !!c[key];
+
+    const card = document.createElement('div');
+    card.className = 'qa-card' + (done ? ' completed' : '');
+    card.style.animationDelay = (idx * 0.03) + 's';
+    card.innerHTML = `
+      <div class="qa-question" data-idx="${idx}">
+        <span class="qa-num">${String(idx + 1).padStart(2, '0')}</span>
+        <span class="qa-text">${item.q}</span>
+        <div class="qa-badges">
+          <span class="diff-badge ${item.diff}">${item.diff}</span>
+          <span class="qa-chevron">▾</span>
+        </div>
+      </div>
+      <div class="qa-answer">
+        <div class="qa-answer-inner">
+          ${item.a}
+          <button class="review-btn ${done ? 'done' : ''}" data-idx="${idx}">
+            ${done ? '✓ Reviewed' : '☐ Mark as Reviewed'}
+          </button>
+        </div>
+      </div>
+    `;
+    list.appendChild(card);
+  });
+
+  // Event listeners
+  list.querySelectorAll('.qa-question').forEach(el => {
+    el.addEventListener('click', () => {
+      const card = el.parentElement;
+      const wasOpen = card.classList.contains('open');
+      // Close all
+      list.querySelectorAll('.qa-card.open').forEach(c => c.classList.remove('open'));
+      if (!wasOpen) card.classList.add('open');
+    });
+  });
+
+  list.querySelectorAll('.review-btn').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = el.dataset.idx;
+      const key = SECTION_KEY + '-' + idx;
+      const c = getCompleted();
+      if (c[key]) {
+        delete c[key];
+        setXP(Math.max(0, getXP() - 10));
+      } else {
+        c[key] = true;
+        setXP(getXP() + 10);
+      }
+      setCompleted(c);
+      refreshNav();
+      refreshProgress();
+      renderCards();
+    });
+  });
+}
+
+// ── FILTERS ──
+document.querySelectorAll('.filter-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    currentFilter = chip.dataset.diff;
+    renderCards();
+  });
+});
+
+document.getElementById('search-input').addEventListener('input', (e) => {
+  searchTerm = e.target.value;
+  renderCards();
+});
+
+// ── INIT ──
+refreshNav();
+refreshProgress();
+renderCards();
+</script>
+</body>
+</html>

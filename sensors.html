@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROBOPREP — Sensors & Perception</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg-deep: #060a12; --bg-main: #0a0e17; --bg-card: #111827; --bg-card-hover: #162032; --bg-card-open: #0f1b2d;
+  --border: #1e2a3a; --border-glow: #263248; --text-primary: #e8ecf1; --text-secondary: #8892a4; --text-muted: #4a5568;
+  --cyan: #00e5ff; --cyan-dim: rgba(0,229,255,0.12); --orange: #ff6b35; --orange-dim: rgba(255,107,53,0.12);
+  --green: #00e676; --green-dim: rgba(0,230,118,0.12); --purple: #b388ff; --purple-dim: rgba(179,136,255,0.12);
+  --yellow: #ffd740; --yellow-dim: rgba(255,215,64,0.12);
+  --section-accent: var(--purple); --section-dim: var(--purple-dim);
+  --font-mono: 'JetBrains Mono', monospace; --font-sans: 'DM Sans', sans-serif;
+}
+html { scroll-behavior: smooth; }
+body { background: var(--bg-deep); color: var(--text-primary); font-family: var(--font-sans); min-height: 100vh; overflow-x: hidden; }
+body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(179,136,255,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(179,136,255,0.03) 1px, transparent 1px); background-size: 60px 60px; pointer-events: none; z-index: 0; }
+
+.navbar { position: fixed; top: 0; left: 0; right: 0; height: 64px; background: rgba(6,10,18,0.88); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; z-index: 100; }
+.logo { font-family: var(--font-mono); font-weight: 800; font-size: 1.3rem; letter-spacing: 3px; color: var(--cyan); text-shadow: 0 0 20px rgba(0,229,255,0.4); text-decoration: none; }
+.logo span { color: var(--text-muted); font-weight: 400; }
+.nav-stats { display: flex; gap: 20px; align-items: center; font-family: var(--font-mono); font-size: 0.78rem; }
+.nav-stat { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+.nav-stat .val { color: var(--text-primary); font-weight: 600; }
+.nav-stat .icon { font-size: 1rem; }
+
+.section-header { position: relative; z-index: 1; margin-top: 64px; padding: 48px 24px 20px; max-width: 900px; margin-left: auto; margin-right: auto; }
+.back-link { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); text-decoration: none; margin-bottom: 20px; transition: color 0.2s; }
+.back-link:hover { color: var(--text-secondary); }
+.section-tag { font-family: var(--font-mono); font-size: 0.68rem; font-weight: 600; letter-spacing: 2.5px; text-transform: uppercase; color: var(--section-accent); margin-bottom: 8px; }
+.section-title { font-family: var(--font-mono); font-size: clamp(1.5rem, 4vw, 2rem); font-weight: 800; margin-bottom: 8px; }
+.section-desc { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 24px; }
+
+.progress-wrap { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.progress-text { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); min-width: 70px; }
+.progress-bar-bg { flex: 1; height: 6px; background: var(--bg-card); border-radius: 100px; overflow: hidden; border: 1px solid var(--border); }
+.progress-bar-fill { height: 100%; background: var(--section-accent); border-radius: 100px; transition: width 0.5s ease; box-shadow: 0 0 10px rgba(179,136,255,0.3); }
+
+.filters { position: relative; z-index: 1; max-width: 900px; margin: 0 auto 24px; padding: 0 24px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.filter-chip { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; letter-spacing: 1px; padding: 7px 16px; border-radius: 100px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
+.filter-chip:hover { border-color: var(--text-muted); color: var(--text-secondary); }
+.filter-chip.active { background: var(--section-dim); border-color: var(--section-accent); color: var(--section-accent); }
+.search-input { flex: 1; min-width: 160px; font-family: var(--font-mono); font-size: 0.78rem; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary); outline: none; transition: border-color 0.2s; }
+.search-input::placeholder { color: var(--text-muted); }
+.search-input:focus { border-color: var(--section-accent); }
+
+.qa-list { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 0 24px 80px; display: flex; flex-direction: column; gap: 12px; }
+.qa-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: border-color 0.3s; }
+.qa-card:hover { border-color: var(--border-glow); }
+.qa-card.completed { border-left: 3px solid var(--green); }
+.qa-card.open { background: var(--bg-card-open); border-color: var(--border-glow); }
+.qa-question { display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px; cursor: pointer; user-select: none; }
+.qa-num { font-family: var(--font-mono); font-size: 0.7rem; font-weight: 700; color: var(--section-accent); min-width: 28px; padding-top: 2px; }
+.qa-text { flex: 1; font-size: 0.95rem; font-weight: 600; line-height: 1.5; }
+.qa-badges { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.diff-badge { font-family: var(--font-mono); font-size: 0.6rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 10px; border-radius: 100px; }
+.diff-badge.core { background: var(--green-dim); color: var(--green); }
+.diff-badge.intermediate { background: var(--orange-dim); color: var(--orange); }
+.diff-badge.advanced { background: var(--purple-dim); color: var(--purple); }
+.qa-chevron { font-size: 1rem; color: var(--text-muted); transition: transform 0.3s; flex-shrink: 0; padding-top: 2px; }
+.qa-card.open .qa-chevron { transform: rotate(180deg); }
+
+.qa-answer { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+.qa-card.open .qa-answer { max-height: 8000px; }
+.qa-answer-inner { padding: 0 20px 20px 60px; font-size: 0.9rem; line-height: 1.75; color: var(--text-secondary); }
+.qa-answer-inner b { color: var(--text-primary); }
+.qa-answer-inner code { font-family: var(--font-mono); font-size: 0.8rem; background: rgba(179,136,255,0.08); color: var(--purple); padding: 2px 7px; border-radius: 4px; }
+.formula { display: block; font-family: var(--font-mono); font-size: 0.82rem; background: rgba(179,136,255,0.08); color: var(--purple); border-left: 3px solid var(--purple); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; overflow-x: auto; white-space: pre-wrap; }
+.key-point { display: block; background: var(--green-dim); border-left: 3px solid var(--green); padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; color: var(--text-primary); font-size: 0.85rem; }
+.interview-tip { display: block; background: var(--orange-dim); border-left: 3px solid var(--orange); padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; color: var(--text-primary); font-size: 0.85rem; }
+.qa-answer-inner p { margin-bottom: 10px; }
+.review-btn { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 1px; padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; margin-top: 16px; transition: all 0.2s; }
+.review-btn:hover { border-color: var(--green); color: var(--green); }
+.review-btn.done { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+
+@media (max-width: 640px) {
+  .navbar { padding: 0 16px; } .nav-stats { gap: 10px; } .nav-stat span:not(.icon):not(.val) { display: none; }
+  .section-header { padding: 40px 16px 16px; } .filters { padding: 0 16px; }
+  .qa-list { padding: 0 16px 60px; } .qa-answer-inner { padding: 0 16px 16px 40px; } .qa-question { padding: 14px 16px; }
+}
+@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.qa-card { animation: fadeUp 0.35s ease both; }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="logo">ROBOPREP<span>.io</span></a>
+  <div class="nav-stats">
+    <div class="nav-stat"><span class="icon">⚡</span><span>XP</span><span class="val" id="nav-xp">0</span></div>
+    <div class="nav-stat"><span class="icon">🔥</span><span>Streak</span><span class="val" id="nav-streak">0</span></div>
+    <div class="nav-stat"><span class="icon">✓</span><span class="val" id="nav-done">0</span><span>done</span></div>
+  </div>
+</nav>
+
+<div class="section-header">
+  <a href="index.html" class="back-link">← Back to Dashboard</a>
+  <div class="section-tag">SECTION 04</div>
+  <h1 class="section-title">Sensors & Perception</h1>
+  <p class="section-desc">LiDAR, cameras, IMUs, depth sensors, point clouds, calibration, visual pipelines, and the hard real-world scenarios where sensor data breaks your assumptions — questions that combine perception with estimation, planning, and control.</p>
+  <div class="progress-wrap">
+    <span class="progress-text" id="prog-text">0 / 20</span>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="prog-bar" style="width:0%"></div></div>
+  </div>
+</div>
+
+<div class="filters">
+  <button class="filter-chip active" data-diff="all">All</button>
+  <button class="filter-chip" data-diff="core">Core</button>
+  <button class="filter-chip" data-diff="intermediate">Intermediate</button>
+  <button class="filter-chip" data-diff="advanced">Advanced</button>
+  <input type="text" class="search-input" placeholder="Search questions..." id="search-input">
+</div>
+
+<div class="qa-list" id="qa-list"></div>
+
+<script>
+const SECTION_KEY = 'sensors';
+
+const QUESTIONS = [
+  {
+    q: "Your LiDAR-based obstacle map shows phantom obstacles that don't exist. The robot keeps stopping in open space. Diagnose and fix it.",
+    diff: "advanced",
+    a: `<p>Phantom obstacles in a LiDAR occupancy grid are a common deployment nightmare. Here's my systematic diagnosis:</p>
+
+<p><b>Cause 1 — Multipath reflections (most common indoors):</b> LiDAR beams bounce off glass, polished metal, or glossy floors before returning. The sensor registers a point at double the true distance, creating ghost obstacles behind walls or in open space. At <b>SpaceData</b>, the facility had glass office partitions that caused exactly this — phantom walls appearing 3m behind the real glass.</p>
+<p><b>Fix:</b> Filter points by intensity (multipath returns are weaker). Mark known reflective surfaces in the map. Use a statistical filter — if a voxel is observed as free 80% of the time and occupied 20%, it's likely a reflection artifact.</p>
+
+<p><b>Cause 2 — Stale points from motion distortion:</b> LiDAR scans take 50-100ms. If the robot is moving or rotating, points collected at the start and end of the scan are in different reference frames. Without motion compensation, these misregistered points create smeared phantom obstacles.</p>
+<p><b>Fix:</b> Deskew the point cloud using IMU data — interpolate the robot's pose during the scan and transform each point to a common timestamp. This is standard in packages like LIO-SAM.</p>
+
+<p><b>Cause 3 — Dust, rain, or suspended particles:</b> In disaster/industrial environments, airborne particles scatter LiDAR beams, creating a fog of false returns close to the sensor.</p>
+<p><b>Fix:</b> Filter by range (remove points < 0.3m). Statistical outlier removal — isolated points far from their neighbors are likely noise. RANSAC-based ground plane extraction removes low returns from dust.</p>
+
+<p><b>Cause 4 — Costmap inflation mismatch:</b> Not a sensor problem but a costmap problem. If the inflation radius in the Nav2 costmap is too large, nearby real obstacles inflate to cover open areas. Or if the costmap clearing doesn't match the LiDAR's field of view, old obstacles aren't cleared.</p>
+<p><b>Fix:</b> Verify the observation sources configuration. Ensure the clearing FOV matches the marking FOV. Reduce inflation radius if it's eating up free space.</p>
+
+<p><b>Cause 5 — Localization error:</b> If the robot's estimated pose is wrong by 0.5m, every LiDAR scan is placed at the wrong location in the map. Previous scans' obstacles appear shifted, creating ghost objects.</p>
+<p><b>Fix:</b> Check localization accuracy (AMCL particle spread, TF tree consistency). If the robot jumped in localization, clear and rebuild the local costmap.</p>
+
+<span class="key-point">Key insight: Phantom obstacles are almost never a LiDAR hardware failure — they're a pipeline failure. The debugging order should be: localization → motion compensation → point filtering → costmap configuration → reflective surfaces. Fix the cheapest thing first.</span>
+
+<span class="interview-tip">🎯 Interview tip: Tell a real story: "At SpaceData, I debugged phantom walls caused by glass partitions. The multipath LiDAR returns created a ghost wall 3m behind the glass. I fixed it with intensity-based filtering and by marking glass surfaces in the static map layer. This cut phantom stops by 90%." Real debugging stories are gold.</span>`
+  },
+  {
+    q: "Explain the camera intrinsic and extrinsic calibration pipeline. Your camera-LiDAR fusion gives 10cm offset errors — how do you fix it?",
+    diff: "intermediate",
+    a: `<p><b>Intrinsic calibration</b> maps 3D points in the camera frame to 2D pixel coordinates. The intrinsic matrix K captures focal length and principal point:</p>
+
+<span class="formula">K = | fx  0   cx |     Projection: [u, v, 1]ᵀ = K · [X/Z, Y/Z, 1]ᵀ
+    | 0   fy  cy |
+    | 0   0   1  |     + distortion coefficients (k1, k2, p1, p2, k3)</span>
+
+<p><b>Calibration procedure:</b> Capture 20-30 images of a checkerboard from different angles and distances. Use <code>cv2.calibrateCamera()</code> to solve for K and distortion coefficients. Verify by checking reprojection error — should be < 0.5 pixels. If > 1.0 pixel, add more diverse viewpoints.</p>
+
+<p><b>Extrinsic calibration</b> is the transformation T between sensor frames (e.g., camera to LiDAR). This is the 6-DOF rigid body transform [R | t].</p>
+
+<p><b>Camera-LiDAR extrinsic calibration methods:</b></p>
+<p>1. <b>Target-based:</b> Use a checkerboard + planar target visible to both sensors. Detect the checkerboard corners in the image and detect the plane in the LiDAR point cloud. Solve for the transform that aligns them. Tools: <code>cam_lidar_calibration</code> ROS package, or manual correspondence.</p>
+<p>2. <b>Target-free:</b> Align edges detected in the image with edges from the LiDAR depth discontinuities. Requires many frames and careful optimization.</p>
+
+<p><b>Diagnosing the 10cm offset error:</b></p>
+
+<p><b>Check 1 — Is it constant or pose-dependent?</b> Project LiDAR points into the camera image. If the offset is consistent across the image, it's a translation error in the extrinsic. If it varies across the image (worse at edges), it's an intrinsic or distortion calibration issue.</p>
+
+<p><b>Check 2 — Recalibrate extrinsics.</b> 10cm is a large translation error — likely the extrinsic calibration data was poor. Common mistakes: using too few checkerboard poses, checkerboard too far from the sensors, or the checkerboard plane wasn't visible cleanly in the LiDAR. Use at least 15 poses at distances from 1m to 5m, with the checkerboard tilted at various angles.</p>
+
+<p><b>Check 3 — Timing synchronization.</b> If the camera and LiDAR are unsynchronized and the robot is moving, each sees a different state. At 1 m/s with 50ms time offset, you get exactly 5cm error — and it changes direction with motion. Fix: hardware-trigger both sensors from the same clock, or software-sync using timestamps and interpolation.</p>
+
+<p><b>Check 4 — Mounting shift.</b> Vibration and impacts can shift the physical mounting. If calibration was done weeks ago and the error appeared recently, recalibrate. Consider adding a continuous online calibration refinement.</p>
+
+<span class="key-point">Key insight: Camera-LiDAR calibration is one of the most fragile parts of a perception stack. A 1° rotation error at 5m range creates 8.7cm of offset. The extrinsic must be accurate to < 0.1° rotation and < 1cm translation for tight fusion. Always verify calibration with a visual overlay before trusting the fusion pipeline.</span>
+
+<span class="interview-tip">🎯 Interview tip: Mention the verification step: "After calibration, I always project LiDAR points into the camera image and manually verify alignment on sharp edges (wall corners, poles). If the colored points don't align with image edges, the calibration is wrong — no matter what the reprojection error says."</span>`
+  },
+  {
+    q: "Compare LiDAR, stereo cameras, RGB-D cameras, and monocular cameras for obstacle detection on a mobile robot. What would you choose and why?",
+    diff: "core",
+    a: `<p>Each sensor makes fundamentally different tradeoffs between cost, accuracy, range, and environmental robustness.</p>
+
+<p><b>LiDAR (2D or 3D):</b></p>
+<p>Active ranging via laser time-of-flight. Accuracy: ±2cm at 100m. Works in complete darkness. Unaffected by textureless surfaces. But expensive ($1K–$10K+), affected by rain/fog/dust (scatters the beam), and produces sparse data compared to cameras (even a 128-beam LiDAR has far fewer points than a VGA image). Fails on highly absorptive surfaces (black matte) and glass (beam passes through).</p>
+
+<p><b>Stereo cameras:</b></p>
+<p>Two cameras, depth from triangulation (disparity matching). Cost: $200-500. Dense depth maps. Works outdoors in natural light. But accuracy degrades with distance (depth error ∝ z²/baseline), fails on textureless surfaces (can't match features), and requires significant compute for real-time disparity computation. Baseline determines max useful range — 10cm baseline gives ±10cm at 5m.</p>
+
+<p><b>RGB-D (structured light / ToF):</b></p>
+<p>Active depth + color. Intel RealSense, Azure Kinect. Cost: $200-400. Dense depth at close range (0.3-10m). Easy to use — just read the depth image. But fails outdoors (sunlight overwhelms the IR pattern), limited range (~10m), and the depth has systematic errors at edges (flying pixels) and reflective surfaces.</p>
+
+<p><b>Monocular camera:</b></p>
+<p>Cheapest ($20-50), lightest, lowest power. Rich visual features for place recognition and classification. But no direct depth — need monocular depth estimation (learned or structure-from-motion), which is approximate at best. Scale is unobservable without additional info.</p>
+
+<p><b>My recommendation by application:</b></p>
+<p><b>Indoor mobile robot (Flomobility-style):</b> RGB-D (RealSense D435). Dense, accurate depth at room-scale distances. Cheap. The indoor lighting is controlled. Supplement with 2D LiDAR for 360° obstacle detection at floor level.</p>
+<p><b>Outdoor quadruped (SpaceData-style):</b> 3D LiDAR (primary) + stereo camera (secondary). LiDAR handles darkness and textureless ground. Stereo provides dense data for near-field obstacle characterization. This is the standard for outdoor autonomous navigation.</p>
+<p><b>Drone or weight-constrained platform:</b> Stereo cameras. Light, low-power, good enough for obstacle avoidance at flight speeds. LiDAR is often too heavy.</p>
+
+<span class="key-point">Key insight: There's no universally best sensor — every choice is a tradeoff against the deployment environment. The two most important questions are: (1) indoor or outdoor (determines if active IR works), and (2) what range do you need (determines if cameras are sufficient). For most ground robots, the answer is LiDAR + camera fusion.</span>
+
+<span class="interview-tip">🎯 Interview tip: Don't just list specs. Frame it as a design decision: "For the SpaceData quadruped, I chose 3D LiDAR because the deployment was GPS-denied indoor/outdoor with potential darkness. Stereo cameras couldn't handle the dark indoor portions. RGB-D couldn't handle the outdoor sunlight. LiDAR handled both."</span>`
+  },
+  {
+    q: "Your depth camera gives 'flying pixels' at object edges that create false obstacles in the point cloud. Explain why this happens and how to filter them.",
+    diff: "intermediate",
+    a: `<p><b>Flying pixels</b> are depth measurement artifacts that appear at the boundary between a foreground object and the background. They show up as points floating in mid-air at a depth between the foreground and background — hence "flying."</p>
+
+<p><b>Why they happen:</b></p>
+<p>Depth cameras (ToF and structured light) have finite pixel size. At an object edge, a single pixel's measurement footprint straddles both the foreground and background. The sensor averages the returns:</p>
+
+<span class="formula">Pixel at edge receives:
+  - Partial return from foreground (distance d₁ = 1.0m)
+  - Partial return from background (distance d₂ = 3.0m)
+  
+Measured depth ≈ weighted average: d ≈ 1.5-2.5m
+→ Point appears floating in empty space between object and wall</span>
+
+<p>For ToF cameras, this is a <b>mixed pixel</b> — the phase measurement averages two returns. For structured light (RealSense), the disparity matching fails at edges because the IR pattern is disrupted.</p>
+
+<p><b>Filtering strategies:</b></p>
+
+<p><b>1. Depth discontinuity filter:</b> Compute the depth gradient (Sobel or difference with neighbors). If a pixel's depth differs from its neighbors by more than a threshold (e.g., 10% of its depth), mark it as an edge pixel and remove it.</p>
+<span class="formula">if |depth(x,y) - depth(x+1,y)| > 0.1 · depth(x,y):
+    remove pixel (x,y)</span>
+
+<p><b>2. Normal-based filter:</b> Compute surface normals from the depth image. Flying pixels create normals pointing in impossible directions (nearly parallel to the viewing axis). Filter points with normals that deviate more than 70° from the expected surface orientation.</p>
+
+<p><b>3. Statistical outlier removal (SOR):</b> For each point, compute the mean distance to its k nearest neighbors. If the mean distance exceeds μ + 2σ of the global distribution, remove the point. Flying pixels are isolated and have large neighbor distances. <code>pcl::StatisticalOutlierRemoval</code> in PCL implements this.</p>
+
+<p><b>4. Sensor-specific confidence filtering:</b> Intel RealSense provides a confidence map alongside the depth image. Low-confidence pixels (< 0.5) correlate with edge artifacts. Filter by confidence before converting to a point cloud.</p>
+
+<p><b>5. Erosion on the depth mask:</b> Morphological erosion on the valid-depth mask removes 1-2 pixels from all object boundaries. Simple, fast, and effective — at the cost of losing real edge points.</p>
+
+<p><b>In practice,</b> I combine confidence filtering + depth discontinuity + SOR. Confidence catches most artifacts, depth discontinuity gets the remaining edge cases, and SOR is the safety net for any outliers that slip through.</p>
+
+<span class="key-point">Key insight: Flying pixels are a fundamental limitation of finite-resolution depth sensors, not a bug. They happen at every object boundary. The perception pipeline MUST include edge filtering as a standard stage — it's not optional. Any point cloud from a depth camera without flying pixel filtering will create false obstacles.</span>
+
+<span class="interview-tip">🎯 Interview tip: Explain the physics, not just the fix: "Flying pixels occur because a single sensor pixel straddles two surfaces at different depths, and the measurement averages them. This creates points floating in free space. I filter them with depth gradient thresholding and statistical outlier removal before feeding the point cloud into the occupancy grid."</span>`
+  },
+  {
+    q: "How does an IMU work at the hardware level? What limits its accuracy and how does sensor grade (consumer vs tactical vs navigation) affect your system design?",
+    diff: "intermediate",
+    a: `<p><b>MEMS accelerometer:</b> A tiny proof mass suspended by silicon springs on a chip. When the chip accelerates, the mass lags behind due to inertia, changing the capacitance between it and fixed electrodes. The capacitance change is measured and converted to acceleration. Typical MEMS size: ~1mm².</p>
+
+<p><b>MEMS gyroscope:</b> Uses the Coriolis effect. A vibrating mass is driven at a resonant frequency. When the chip rotates, the Coriolis force deflects the mass perpendicular to both the vibration and rotation axes. This deflection is measured capacitively. Requires extremely precise fabrication — the vibrating structure is microns thick.</p>
+
+<p><b>Key error sources:</b></p>
+<span class="formula">Bias:              Constant offset in the measurement. 
+                   Accel: ~0.01-0.1 m/s² (MEMS).  Gyro: ~0.01-1 °/s (MEMS)
+Bias instability:  Slow random drift of the bias over time (Allan variance minimum)
+Scale factor:      Gain error — 1.02× instead of 1.00×. Causes errors proportional to signal
+Noise density:     White noise per √Hz. Accel: ~100 μg/√Hz (MEMS)
+Cross-axis:        Rotation on X leaks into Y measurement. Typically < 1-2%
+Temperature:       All of the above change with temperature</span>
+
+<p><b>Sensor grades and system design impact:</b></p>
+
+<p><b>Consumer grade (phones, hobby drones):</b> Gyro bias ~1°/s, accel bias ~0.05 m/s². Dead reckoning drifts meters per minute. Design: must fuse with GPS/vision at high rate. Can't rely on IMU alone for more than 0.5 seconds. Used in SpaceData for the initial prototype.</p>
+
+<p><b>Industrial/automotive grade (VN-100, ADIS16470):</b> Gyro bias ~0.01°/s, accel bias ~0.01 m/s². Useful for 10-30 seconds of dead reckoning. Design: can bridge GPS gaps, support EKF between LiDAR updates. This is the sweet spot for most ground robots.</p>
+
+<p><b>Tactical grade (HG1700, STIM300):</b> Gyro bias ~0.001°/s. Maintains heading accuracy for minutes. Design: can navigate GPS-denied for minutes with occasional LiDAR updates. Used in military ground robots.</p>
+
+<p><b>Navigation grade (fiber optic / ring laser gyro):</b> Gyro bias ~0.0001°/s. Autonomous navigation for hours. Cost: $50K-$500K, size: shoebox. Used in submarines and aircraft INS.</p>
+
+<p><b>Design implication:</b> The IMU grade determines how much you depend on external corrections. With a consumer IMU, your EKF needs LiDAR/camera updates every 0.1 seconds or it diverges. With a tactical IMU, you can survive 30-second sensor dropouts. This directly affects your system's robustness to temporary sensor failures.</p>
+
+<span class="key-point">Key insight: IMU grade defines your system's "time to diverge" — how long you can dead-reckon before the error becomes unacceptable. Consumer: ~0.5s. Industrial: ~10s. Tactical: ~60s. This is the single most important parameter when designing a navigation system's failure handling.</span>
+
+<span class="interview-tip">🎯 Interview tip: Quantify the impact: "With the consumer-grade IMU in the SpaceData quadruped, accelerometer bias of 0.01 m/s² causes 0.5m position drift in 10 seconds. That's why I needed LiDAR updates at 10 Hz minimum — the IMU couldn't hold accuracy between scans." Numbers tied to your project are compelling.</span>`
+  },
+  {
+    q: "You're building a perception pipeline for a mobile manipulator that needs to pick objects off a shelf. Design the full sensor suite and pipeline.",
+    diff: "advanced",
+    a: `<p>This is an integrated perception-manipulation problem. The pipeline needs to handle navigation to the shelf, object detection, grasp pose estimation, and visual servoing during manipulation.</p>
+
+<p><b>Sensor suite:</b></p>
+<p><b>Navigation sensors:</b> 2D LiDAR (RPLiDAR A3 or similar) for SLAM and obstacle avoidance. IMU for odometry fusion. Wheel encoders. Total cost: ~$600.</p>
+<p><b>Manipulation sensors:</b> Wrist-mounted RGB-D camera (RealSense D405 — short-range optimized for manipulation, 0.1-1m range). Eye-in-hand gives the best view of the workspace and handles occlusion as the arm moves. Optionally, a second fixed overhead camera for coarse scene understanding.</p>
+<p><b>Gripper sensors:</b> Force/torque sensor at wrist for grasp force control. Tactile sensors on fingertips for slip detection (optional but valuable).</p>
+
+<p><b>Pipeline — Phase 1: Navigate to shelf</b></p>
+<p>Standard Nav2 stack: AMCL localization against pre-built map, global + local planners, LiDAR-based costmap. The robot approaches the shelf to within the arm's workspace.</p>
+
+<p><b>Pipeline — Phase 2: Scene understanding</b></p>
+<p>Wrist camera captures RGB-D image of the shelf. Object detection via a trained model (YOLO v8 or DETIC for open-vocabulary detection). Segment the target object. Extract the point cloud segment for the target object from the depth image.</p>
+
+<p><b>Pipeline — Phase 3: Grasp pose estimation</b></p>
+<span class="formula">Option A: Analytical — compute the object centroid from the point cloud segment,
+  estimate surface normals, generate grasp candidates perpendicular to the 
+  surface, rank by collision-free reachability via MoveIt.
+
+Option B: Learned — use GraspNet or Contact-GraspNet to predict 6-DOF 
+  grasp poses directly from the point cloud. More robust to novel objects
+  but requires GPU inference.</span>
+
+<p><b>Pipeline — Phase 4: Motion planning + execution</b></p>
+<p>Plan to pre-grasp pose (5cm above grasp) using MoveIt with obstacle-aware planning (shelf geometry as collision objects). Execute approach. Switch to Cartesian impedance control for the final 5cm — compliance handles small pose errors.</p>
+
+<p><b>Pipeline — Phase 5: Visual servoing (critical)</b></p>
+<p>As the gripper approaches, run continuous eye-in-hand visual tracking. The object pose may differ from the initial estimate (the arm's own motion changes the viewpoint). Use iterative closest point (ICP) or learned pose refinement to correct the grasp pose in real-time. This closed-loop correction is what separates reliable grasping from "sometimes works."</p>
+
+<p><b>Failure handling:</b></p>
+<p>Object not detected → rotate wrist camera to scan the shelf from different angles. Grasp fails (slip detected) → retract, re-observe, try alternate grasp pose. Object moved during approach → visual servoing tracks it. Arm collision imminent → MoveIt's real-time collision checking aborts the trajectory.</p>
+
+<span class="key-point">Key insight: The hardest part isn't any single component — it's the coordination between perception and manipulation. The perception pipeline must run continuously during manipulation, not just once before grasping. Eye-in-hand visual servoing is the key to robust grasping because it closes the loop between what you see and what you do.</span>
+
+<span class="interview-tip">🎯 Interview tip: Emphasize the closed-loop nature: "I'd use eye-in-hand visual servoing, not open-loop grasp execution. The initial grasp estimate is always slightly wrong — sensor noise, calibration error, object pose uncertainty. The visual servoing corrects in real-time. This is the difference between a demo and a deployable system."</span>`
+  },
+  {
+    q: "Explain the pinhole camera model. A colleague says 'just use the raw pixels for RL observation — no need to understand camera math.' Why are they wrong?",
+    diff: "core",
+    a: `<p>The <b>pinhole camera model</b> describes how 3D world points project onto a 2D image plane:</p>
+
+<span class="formula">3D point: P = [X, Y, Z]ᵀ  (in camera frame)
+2D pixel:  p = [u, v]ᵀ
+
+Projection:
+  u = fx · (X/Z) + cx
+  v = fy · (Y/Z) + cy
+
+Matrix form: s·[u, v, 1]ᵀ = K · [R|t] · [X, Y, Z, 1]ᵀ
+  where K = intrinsic matrix, [R|t] = extrinsic (world → camera)</span>
+
+<p><b>Why your colleague is wrong — four concrete reasons:</b></p>
+
+<p><b>1. Sim-to-real visual gap:</b> If you train an RL policy on simulation camera images and deploy on a real camera, the intrinsics are different. Different focal length means the same object appears at different pixel scales. Different distortion means straight lines are curved differently. Without understanding and compensating for these differences (undistortion, matched intrinsics in sim), the policy sees a different visual world and fails.</p>
+
+<p><b>2. Depth from vision requires camera math:</b> If the policy needs to understand distances (avoiding obstacles, reaching objects), raw pixels don't encode depth. But with known intrinsics and a baseline (stereo) or known object size, you can recover metric depth. Without intrinsics, there's no way to convert pixel measurements to real-world distances.</p>
+
+<p><b>3. Multi-camera fusion:</b> If you have multiple cameras (common on mobile robots), fusing their observations into a consistent world model requires extrinsic calibration. Raw pixels from two cameras at different positions and orientations can't be combined without the geometric relationship between them.</p>
+
+<p><b>4. Lens distortion corrupts the RL observation:</b> Wide-angle cameras (common for large FOV) have significant barrel distortion — straight lines appear curved. An RL policy trained on undistorted simulation images will see distorted real images. The same object at the image edge looks different from training. You MUST undistort using the distortion model, which requires the intrinsic calibration.</p>
+
+<p><b>The PRANA project connection:</b> In PRANA, we used DINOv2 features as visual observations instead of raw pixels. But even with learned features, the camera model matters — the image must be correctly undistorted and cropped to match training conditions. The DINOv2 backbone was pretrained on standard images, not fisheye distorted ones.</p>
+
+<span class="key-point">Key insight: Raw pixels are an observation, not a perception. Perception requires understanding the geometric relationship between pixels and the 3D world. Even "end-to-end" learning approaches that go pixels→actions implicitly need consistent camera geometry between training and deployment. The camera model is the bridge between 2D images and 3D reality.</span>
+
+<span class="interview-tip">🎯 Interview tip: Use the sim-to-real argument — it's the most practical: "If your RL policy was trained with a camera at focal length 400px and the real camera has focal length 600px, objects appear 50% larger on the real robot. The policy has never seen this visual scale and will fail. Camera math isn't optional for sim-to-real visual policies."</span>`
+  },
+  {
+    q: "What is ICP (Iterative Closest Point) and how does it fail? Your LiDAR odometry using ICP drifts in a long corridor — why?",
+    diff: "intermediate",
+    a: `<p><b>ICP</b> aligns two point clouds by iteratively finding the transformation (rotation + translation) that minimizes the distance between corresponding points.</p>
+
+<p><b>Algorithm:</b></p>
+<span class="formula">1. For each point in cloud A, find the closest point in cloud B → correspondences
+2. Compute the transformation T that minimizes Σ||T·pᵢ_A - pᵢ_B||²
+3. Apply T to cloud A
+4. Repeat until convergence (change in error < threshold)</span>
+
+<p>Step 2 has a closed-form solution using SVD of the cross-covariance matrix. Each iteration is O(N·log(N)) using k-d tree for nearest neighbor search.</p>
+
+<p><b>ICP failure modes:</b></p>
+
+<p><b>1. Local minima:</b> ICP is a local optimizer — it finds the nearest local minimum of the alignment error. If the initial guess is far from the true alignment, ICP converges to a wrong solution. The closest-point correspondences are wrong, and the algorithm has no mechanism to escape.</p>
+<p><b>Fix:</b> Good initial guess from IMU or wheel odometry. Or use global registration (RANSAC + feature matching) before ICP refinement.</p>
+
+<p><b>2. The corridor problem (your question):</b></p>
+<p>In a long featureless corridor, the LiDAR scan sees two parallel walls. The geometry is <b>degenerate along the corridor axis</b> — sliding the scan forward or backward along the corridor barely changes the alignment error. The ICP cost function is flat in one direction.</p>
+
+<span class="formula">In a corridor:
+  Perpendicular to walls (x): well-constrained (wall distance is measured)
+  Along corridor (y): unconstrained (shifting y doesn't change wall distances)
+  Rotation (θ): well-constrained (wall parallelism is measured)
+
+Result: ICP can estimate x and θ accurately but y drifts → forward drift</span>
+
+<p><b>Fix for corridor drift:</b></p>
+<p>1. <b>Detect degeneracy:</b> Analyze the eigenvalues of the ICP Hessian. If one eigenvalue is near zero, that direction is unconstrained. Flag it and increase reliance on wheel odometry for that axis.</p>
+<p>2. <b>Use point-to-plane ICP</b> instead of point-to-point. Point-to-plane minimizes the distance from each point to the tangent plane at the corresponding point. It constrains the transformation along surface normals but leaves the tangent direction free — making the degeneracy explicit and the optimization better-conditioned.</p>
+<p>3. <b>Fuse with IMU/odometry:</b> The wheel encoders measure forward distance accurately (short-term). In the corridor, let odometry handle the along-corridor direction and ICP handle the cross-corridor direction. An EKF naturally does this if the covariance is set correctly.</p>
+
+<span class="key-point">Key insight: ICP fails when the geometry doesn't constrain all 6 DOF. Corridors, open fields, and smooth curved surfaces all have degenerate directions. A robust LiDAR odometry system must detect geometric degeneracy and gracefully fall back to other sensors for the unconstrained directions.</span>
+
+<span class="interview-tip">🎯 Interview tip: Explain the eigenvalue analysis: "I compute the Hessian of the ICP cost function. Its eigenvalues tell me which directions are well-constrained (large eigenvalues) and which are degenerate (small eigenvalues). In a corridor, the along-axis eigenvalue collapses, and I switch to wheel odometry for that direction." This is a sophisticated answer.</span>`
+  },
+  {
+    q: "How does a 2D LiDAR work vs a 3D LiDAR? When would you use each for a ground robot?",
+    diff: "core",
+    a: `<p><b>2D LiDAR</b> (e.g., RPLiDAR, Hokuyo, SICK TiM):</p>
+<p>A single laser beam rotates (or is reflected by a spinning mirror) in a plane, producing a 360° scan of distances in that plane. Typically mounted horizontally on a robot at ~30cm height. Output: a planar point cloud — essentially a 2D floor plan of the environment at the scan height.</p>
+<span class="formula">Specs (typical RPLiDAR A3):
+  Points per scan: ~8000
+  Scan rate: 10-15 Hz
+  Range: 25m
+  Angular resolution: 0.225°
+  Cost: $300-600</span>
+
+<p><b>3D LiDAR</b> (e.g., Velodyne, Ouster, Livox):</p>
+<p>Multiple laser emitters at different vertical angles (16, 32, 64, or 128 beams) rotate together, producing a 3D point cloud. Each rotation gives a spherical scan of the environment. Livox uses a non-repetitive scan pattern for denser coverage over time.</p>
+<span class="formula">Specs (typical Ouster OS1-64):
+  Points per scan: ~130,000
+  Scan rate: 10-20 Hz
+  Range: 120m
+  Vertical FOV: 45°
+  Cost: $3,000-8,000</span>
+
+<p><b>When to use 2D:</b></p>
+<p>Indoor flat-floor robots (warehouse AMRs, service robots, the Flomobility use case). The floor is flat, obstacles are at scan height, and 2D SLAM (Cartographer 2D, AMCL) is mature and fast. Cost-effective. Most indoor navigation problems don't need 3D. I used a 2D LiDAR at Flomobility for obstacle avoidance and localization — combined with AprilTags for absolute positioning.</p>
+
+<p><b>When to use 3D:</b></p>
+<p>Outdoor navigation, uneven terrain, stair climbing, or any environment where obstacles exist at multiple heights. A 2D LiDAR misses table overhangs, low obstacles, and ramps. At <b>SpaceData</b>, the disaster response scenario required 3D LiDAR because rubble creates obstacles at all heights and the terrain is irregular.</p>
+
+<p><b>Hybrid approach:</b> Some teams mount a 2D LiDAR tilted or on a servo to sweep vertically, creating a pseudo-3D scan. Cheap but slow — the sweep takes seconds. Fine for mapping, not for real-time obstacle avoidance.</p>
+
+<span class="key-point">Key insight: 2D LiDAR assumes the world is extruded vertically from the scan plane — everything above and below the scan is assumed to match. This is true for indoor corridors and offices. It fails outdoors or in complex 3D environments. The decision is: "Can I safely assume the world is 2.5D?" If yes, 2D LiDAR saves cost and compute. If no, you need 3D.</span>
+
+<span class="interview-tip">🎯 Interview tip: Frame it as an engineering decision with cost analysis: "2D LiDAR at $400 handles 90% of indoor navigation. 3D at $5000 is needed for outdoor or multi-level environments. I'd only upgrade to 3D when the 2D assumption (flat floor, obstacles at scan height) breaks."</span>`
+  },
+  {
+    q: "Your robot's wheel odometry diverges from LiDAR-based odometry by 15% over a 20m traverse. Diagnose the possible causes.",
+    diff: "intermediate",
+    a: `<p>15% over 20m means the wheel odometry reports ~17m or ~23m when the robot actually traveled 20m. This is a large error — something is systematically wrong, not just noise.</p>
+
+<p><b>Cause 1 — Wheel diameter calibration error (most common):</b></p>
+<p>Odometry computes distance as <code>distance = wheel_radius × encoder_ticks × tick_resolution</code>. If the wheel radius parameter is wrong by 7-8%, the distance is wrong by 7-8%, which gives ~15% round-trip error. Common reason: the nominal wheel diameter (from spec sheet) doesn't match reality due to tire inflation, wear, or deformation under load.</p>
+<p><b>Fix:</b> Drive the robot a measured 10m distance on flat ground, record the encoder ticks, and compute the true effective wheel radius. This is the most basic calibration and is often neglected.</p>
+
+<p><b>Cause 2 — Wheel slip:</b></p>
+<p>On smooth floors (tile, polished concrete), wheels slip during acceleration and deceleration. The encoders spin but the robot doesn't move proportionally. Over 20m with repeated acceleration (turns, stops), 15% cumulative slip is plausible.</p>
+<p><b>Fix:</b> Reduce acceleration limits. Use IMU-corrected odometry — if encoders say "accelerating at 2 m/s²" but IMU says "accelerating at 1.5 m/s²", the difference is slip.</p>
+
+<p><b>Cause 3 — Track width (wheelbase) error:</b></p>
+<p>For differential drive robots, rotation is computed from the difference between left and right wheel distances divided by the track width. If the track width parameter is wrong, every rotation accumulates a position error. Over a 20m path with turns, this compounds.</p>
+<p><b>Fix:</b> Spin the robot 360° in place 10 times. If it doesn't return to the exact starting heading, the track width is wrong. Adjust until N rotations return to the starting angle precisely.</p>
+
+<p><b>Cause 4 — Encoder resolution or counting error:</b></p>
+<p>If the encoder is missing counts (electrical noise, too-fast rotation exceeding the counter's maximum frequency), the odometry systematically under-reports distance. Or if the encoder resolution parameter (ticks per revolution) is wrong, every measurement is scaled incorrectly.</p>
+<p><b>Fix:</b> Manually rotate the wheel exactly one revolution and verify the encoder reads the expected number of ticks. Check for noise on the encoder signal with an oscilloscope.</p>
+
+<p><b>Cause 5 — Non-planar motion:</b></p>
+<p>If the robot goes up or down a ramp, wheel odometry measures the surface distance (longer), while LiDAR measures the projected horizontal distance (shorter). On a 10° ramp, the difference is ~1.5% — not enough for 15%, but it compounds with other errors.</p>
+
+<span class="key-point">Key insight: Wheel odometry errors are always systematic, not random. A 15% error means a parameter is wrong — you don't get 15% from noise. The debugging protocol is: calibrate wheel radius → calibrate track width → check for slip → verify encoder counts. Each step has a simple physical test.</span>
+
+<span class="interview-tip">🎯 Interview tip: Describe the calibration procedure: "First, I drive 10m straight on flat ground and calibrate the wheel radius to < 1% error. Then I spin 10 full rotations in place and calibrate the track width. These two parameters account for 90% of odometry error. If error persists, I check for wheel slip using IMU cross-validation." Systematic calibration procedures impress interviewers.</span>`
+  },
+  {
+    q: "What is the transform tree (TF) in ROS and why does getting it wrong cause catastrophic perception failures? Give a concrete debugging example.",
+    diff: "intermediate",
+    a: `<p>The <b>TF tree</b> in ROS is the data structure that tracks the spatial relationships (transforms) between every coordinate frame in the system — map, odom, base_link, each sensor, each joint. Every perception and control component depends on it.</p>
+
+<span class="formula">Typical TF tree for a mobile robot:
+  map → odom → base_link → laser_link
+                         → camera_link → camera_optical_frame
+                         → imu_link
+                         
+map → odom:       provided by localization (AMCL, EKF)
+odom → base_link: provided by odometry (wheel encoders + IMU)
+base_link → sensors: static transforms from URDF/calibration</span>
+
+<p><b>Why it's catastrophic when wrong:</b></p>
+<p>Every sensor measurement is expressed in the sensor's frame. To use it in the world, you must transform it through the TF tree. If ANY transform is wrong, the measurement lands at the wrong place in the world.</p>
+
+<p><b>Concrete debugging example from SpaceData:</b></p>
+<p>The LiDAR was mounted on the quadruped's body, pointed forward. In the URDF, the LiDAR frame was defined with X-forward, Z-up. But the actual LiDAR driver published data with X-right, Y-forward, Z-up (a different convention). The <code>base_link → laser_link</code> static transform didn't account for this 90° rotation.</p>
+
+<p><b>Symptom:</b> The occupancy grid showed walls rotated 90° from reality. The robot would try to navigate through where it thought open space was — directly into a wall. The localization (AMCL) also couldn't match the scan to the map, so it diverged.</p>
+
+<p><b>The fix was a single line</b> — adding a 90° yaw rotation to the static transform publisher. But diagnosing it took hours because:</p>
+<p>1. The LiDAR produced valid data (not obviously broken)</p>
+<p>2. The costmap showed obstacles (just in the wrong places)</p>
+<p>3. The error wasn't visible unless you carefully overlaid the scan on the map in RViz and noticed the rotation</p>
+
+<p><b>Common TF mistakes:</b></p>
+<p>1. <b>Sensor frame vs optical frame:</b> Cameras in ROS have two frames — camera_link (X-right, Y-down, Z-forward per ROS convention) and camera_optical_frame (X-right, Y-down, Z-forward per OpenCV convention). Using the wrong one rotates your image-derived point cloud by 90°.</p>
+<p>2. <b>Missing odom → base_link:</b> If the odometry node dies, this transform goes stale. All sensor data is projected using the last known pose, creating a frozen perception that doesn't track robot motion.</p>
+<p>3. <b>Timestamp mismatch:</b> Transforms are time-stamped. If you look up the transform at the wrong time (sensor timestamp vs current time), you get the wrong pose. Use <code>tf2.lookupTransform(time=msg.header.stamp)</code> not <code>time=now</code>.</p>
+
+<span class="key-point">Key insight: The TF tree is the single source of truth for "where is everything relative to everything else." A wrong transform doesn't cause a clean error — it causes phantom obstacles, impossible maps, localization divergence, and grasps that miss by 10cm. Always verify TF with RViz visualization before trusting any perception output.</span>
+
+<span class="interview-tip">🎯 Interview tip: Tell the debugging story: "At SpaceData, the robot kept driving into walls. The LiDAR data looked fine in isolation, but the TF from base_link to laser had a missing 90° rotation — the LiDAR's frame convention didn't match the URDF. I caught it by visualizing the scan overlaid on the map in RViz and seeing the rotation. One-line fix, hours of debugging."</span>`
+  },
+  {
+    q: "Your stereo camera system gives noisy depth at 5m range but clean depth at 1m. Explain quantitatively why and what you can do about it.",
+    diff: "intermediate",
+    a: `<p>This is a fundamental property of stereo geometry, not a defect. Stereo depth accuracy degrades <b>quadratically</b> with distance.</p>
+
+<p><b>The math:</b></p>
+<span class="formula">Stereo depth: Z = f · B / d
+  where f = focal length (pixels), B = baseline (meters), d = disparity (pixels)
+
+Differentiating: dZ/dd = -f·B/d² = -Z²/(f·B)
+
+Depth uncertainty: σ_Z = |dZ/dd| · σ_d = Z² · σ_d / (f · B)</span>
+
+<p>The key term is <b>Z² / (f·B)</b>. Depth error grows with the SQUARE of the distance. If σ_d = 0.5 pixels (typical subpixel disparity noise):</p>
+
+<span class="formula">Example: f = 500 px, B = 0.12 m (typical stereo camera)
+
+At Z = 1m:  σ_Z = 1² × 0.5 / (500 × 0.12) = 0.008 m = 8mm   ✓ clean
+At Z = 5m:  σ_Z = 25 × 0.5 / (500 × 0.12) = 0.208 m = 21cm   ✗ noisy
+At Z = 10m: σ_Z = 100 × 0.5 / (500 × 0.12) = 0.833 m = 83cm  ✗ useless</span>
+
+<p>At 1m, depth is accurate to 8mm — excellent. At 5m, it's ±21cm — barely usable for obstacle avoidance. At 10m, it's ±83cm — meaningless.</p>
+
+<p><b>Why this happens intuitively:</b> At close range, a small depth change causes a large disparity change (easy to measure). At far range, a large depth change causes a tiny disparity change (hard to distinguish from noise). At 5m, the disparity might be only 12 pixels — a 0.5 pixel error is 4% of the signal.</p>
+
+<p><b>What you can do:</b></p>
+
+<p><b>1. Increase baseline B:</b> σ_Z ∝ 1/B. Doubling the baseline halves the depth error. Move the cameras further apart. But larger baseline means more occlusion between views and harder matching.</p>
+
+<p><b>2. Increase focal length f:</b> σ_Z ∝ 1/f. Use a telephoto lens for long-range depth. But this reduces FOV — you see farther but narrower. This is why autonomous cars use both wide-angle (short-range) and telephoto (long-range) cameras.</p>
+
+<p><b>3. Better stereo matching:</b> Reduce σ_d with subpixel disparity algorithms (parabola fitting on the cost curve), or use learned stereo matching (RAFT-Stereo, CREStereo) which achieves σ_d < 0.3 pixels.</p>
+
+<p><b>4. Temporal filtering:</b> Average depth over multiple frames. If the scene is static, averaging N frames reduces noise by √N. At 30 FPS, averaging 10 frames gives 3x noise reduction with 333ms latency.</p>
+
+<p><b>5. Fuse with LiDAR:</b> Use stereo for dense near-field depth and LiDAR for accurate far-field depth. The sensors are complementary — stereo is dense but noisy at range, LiDAR is sparse but accurate at range.</p>
+
+<span class="key-point">Key insight: The Z² dependency is inescapable — it's geometry, not a sensor limitation. This is why stereo cameras are used for near-field perception (< 5m) and LiDAR for far-field (> 5m) in most autonomous systems. Understanding this quantitatively lets you set the right range limits for each sensor in your pipeline.</span>
+
+<span class="interview-tip">🎯 Interview tip: Derive the formula on the whiteboard: "Depth is Z = fB/d, so depth error is dZ = Z²·σ_d/(fB). At 5m with a 12cm baseline and 0.5px disparity noise, that's 21cm error. This is why I'd use stereo only within 3m and switch to LiDAR beyond that." Quantitative reasoning with a sensor-selection decision is strong.</span>`
+  },
+  {
+    q: "What is RANSAC and how is it used in robotics perception? Your plane detection takes 500ms per frame — how do you speed it up?",
+    diff: "intermediate",
+    a: `<p><b>RANSAC (Random Sample Consensus)</b> fits a model to data with outliers by randomly sampling minimal subsets and checking how many data points agree with each hypothesis.</p>
+
+<p><b>Algorithm for plane fitting:</b></p>
+<span class="formula">Repeat N times:
+  1. Randomly sample 3 points (minimum for a plane)
+  2. Fit a plane: ax + by + cz + d = 0
+  3. Count inliers: points within distance threshold ε of the plane
+  4. If inlier count > best so far, save this plane
+
+After N iterations:
+  5. Refit the plane using ALL inliers (least squares)
+  6. Remove inliers from point cloud, repeat for next plane</span>
+
+<p><b>Uses in robotics:</b></p>
+<p><b>Ground plane extraction:</b> Find the dominant horizontal plane in LiDAR data → ground surface for navigation. Points above the ground plane are obstacles.</p>
+<p><b>Feature matching:</b> Remove outlier matches in visual odometry. RANSAC + essential matrix fitting finds the camera motion while rejecting wrong feature correspondences.</p>
+<p><b>Object detection:</b> Find planar surfaces (tables, walls) for manipulation. Segment the scene into planar and non-planar regions.</p>
+
+<p><b>Why it's slow (500ms diagnosis):</b></p>
+<p>RANSAC's runtime depends on the number of iterations N, which depends on the outlier ratio:</p>
+<span class="formula">N = log(1 - p) / log(1 - (1-e)^s)
+  p = desired probability of finding the correct model (0.99)
+  e = outlier ratio
+  s = minimum sample size (3 for planes)
+
+At 50% outliers: N = log(0.01) / log(1 - 0.5³) = 35 iterations
+At 90% outliers: N = log(0.01) / log(1 - 0.1³) = 4603 iterations!</span>
+
+<p>If the point cloud is mostly non-planar (cluttered scene), the outlier ratio is high and RANSAC needs thousands of iterations. At 100K points, each inlier check is O(N_points), making the total O(N_iterations × N_points).</p>
+
+<p><b>Speeding it up:</b></p>
+<p><b>1. Downsample first:</b> Voxel grid filter the point cloud from 100K to 10K points. The plane is still detectable but inlier checking is 10x faster.</p>
+<p><b>2. Normal pre-filtering:</b> Compute point normals. For ground plane detection, only consider points with normals within 30° of vertical. This drastically reduces the effective outlier ratio.</p>
+<p><b>3. Use organized point clouds:</b> If the data comes from a structured sensor (RGB-D, spinning LiDAR), exploit the grid structure for O(1) neighbor access instead of k-d tree searches.</p>
+<p><b>4. Early termination:</b> If an hypothesis has more inliers than a threshold, accept it immediately without completing all N iterations.</p>
+<p><b>5. Parallel RANSAC:</b> Evaluate multiple hypotheses simultaneously on GPU. Each thread tests one random sample against all points.</p>
+<p><b>6. Use PROSAC:</b> Instead of random sampling, sample from points sorted by quality (e.g., points with the most vertical normals first). This biases sampling toward likely inliers, converging much faster.</p>
+
+<span class="key-point">Key insight: RANSAC is embarrassingly parallel and easy to speed up. The 500ms is almost certainly because you're running vanilla RANSAC on a full-resolution point cloud without pre-filtering. Downsample + normal filter + early termination typically brings it to < 20ms.</span>
+
+<span class="interview-tip">🎯 Interview tip: Show the optimization chain: "I'd first downsample to 10K points (10x speedup), then pre-filter by normal direction (3x fewer outliers, which reduces iterations by 5x), add early termination (2x). Combined: 500ms → ~5ms. If that's still too slow, move to GPU-parallel RANSAC." Quantified optimization chains show engineering depth.</span>`
+  },
+  {
+    q: "You're fusing a 30Hz camera with a 10Hz LiDAR and a 1000Hz IMU. How do you handle the different rates and timestamps?",
+    diff: "advanced",
+    a: `<p>Asynchronous multi-rate sensor fusion is a core systems engineering problem. There are several approaches, with increasing sophistication:</p>
+
+<p><b>Approach 1 — Nearest-timestamp matching (naive, don't do this):</b></p>
+<p>For each camera frame, find the nearest LiDAR scan and IMU reading. Problem: at 30Hz camera and 10Hz LiDAR, the nearest LiDAR scan can be up to 50ms away. At 1 m/s, that's 5cm of motion — the camera and LiDAR are looking at different robot states.</p>
+
+<p><b>Approach 2 — IMU-driven prediction + sensor updates (standard EKF approach):</b></p>
+<span class="formula">IMU arrives at 1000Hz:
+  → Run EKF predict step (propagate state + covariance)
+  
+Camera arrives at 30Hz:
+  → Run EKF update step with camera measurement
+  
+LiDAR arrives at 10Hz:
+  → Run EKF update step with LiDAR measurement
+  
+Controller reads state at 200Hz:
+  → Use latest predicted state</span>
+
+<p>This is the standard approach. The IMU drives the predict step at high rate, maintaining a continuous state estimate. Camera and LiDAR provide corrections whenever they arrive. The EKF naturally handles the asynchrony — each update is applied at the correct timestamp using the predicted state at that time.</p>
+
+<p><b>Key detail — measurement delay compensation:</b></p>
+<p>The camera at 30Hz has ~30ms of processing delay (capture + feature extraction). The LiDAR at 10Hz has ~10ms of processing delay (scan matching). When the measurement arrives, the state has already been predicted past the measurement timestamp. You need to "rewind" the state:</p>
+<span class="formula">Options:
+1. State augmentation: keep a buffer of past states. When delayed 
+   measurement arrives, apply update at the correct past state.
+2. Forward prediction: predict the measurement to current time 
+   using the dynamics model.
+3. Stochastic cloning: augment the state with copies at 
+   past timestamps for delayed update.</span>
+
+<p><b>Approach 3 — Factor graph (most sophisticated):</b></p>
+<p>Use a sliding-window factor graph (like GTSAM). Each sensor measurement adds a factor at its timestamp. The optimizer jointly optimizes all states in the window, naturally handling asynchronous timing and delays. This is what VINS-Mono and LIO-SAM use.</p>
+
+<p><b>Practical implementation details:</b></p>
+<p><b>Time synchronization:</b> All sensors must share a common clock or their clocks must be synchronized. Hardware PPS (pulse-per-second) is best. Software NTP/PTP synchronization gives ~1ms accuracy. Without sync, you get systematic offsets that corrupt fusion.</p>
+<p><b>Buffer management:</b> Keep a rolling buffer of IMU data (last 200ms). When a camera or LiDAR measurement arrives with a past timestamp, integrate IMU from the buffer to get the state at that timestamp, apply the update, then re-integrate forward to the present.</p>
+
+<span class="key-point">Key insight: The IMU is the backbone — it provides the continuous state prediction that bridges between slow sensor updates. Without the IMU, the state is only known at 10Hz (LiDAR rate), and the controller operates on 100ms-old data. With the IMU, the state is known at 1000Hz, and slow sensors just provide corrections.</span>
+
+<span class="interview-tip">🎯 Interview tip: Draw the timeline: "IMU ticks at 1ms intervals (predict), camera updates arrive every 33ms with 30ms delay, LiDAR updates arrive every 100ms with 10ms delay. The EKF processes IMU immediately and buffers slow sensors for delayed updates. The controller always reads the latest prediction." The timeline visual is worth a thousand words.</span>`
+  },
+  {
+    q: "Explain how time-of-flight (ToF) depth cameras work vs structured light cameras. When does each fail?",
+    diff: "core",
+    a: `<p><b>Time-of-Flight (ToF):</b></p>
+<p>Emits modulated infrared light (continuous wave, not pulsed) and measures the <b>phase shift</b> of the returned signal to compute distance.</p>
+<span class="formula">Emitted signal: s(t) = A·sin(2πft)
+Returned signal: s(t) = A'·sin(2πft + φ)
+
+Distance: d = c·φ / (4πf)
+  where c = speed of light, f = modulation frequency</span>
+
+<p>Each pixel has its own detector, so depth is measured independently per pixel — <b>all pixels simultaneously</b>. No scanning, no matching. Fast (30-60 FPS), works on textureless surfaces.</p>
+<p><b>Examples:</b> Azure Kinect DK (ToF mode), PMD Flexx2, iPhone LiDAR (dToF).</p>
+
+<p><b>Structured Light:</b></p>
+<p>Projects a known IR pattern (dots, stripes, or speckle) onto the scene. A camera observes how the pattern deforms on surfaces. The deformation encodes depth — pattern shift from the known projection geometry is converted to depth via triangulation (similar to stereo but with one camera + one projector).</p>
+<p><b>Examples:</b> Intel RealSense D400 series (active IR stereo — hybrid), original Kinect, iPhone Face ID.</p>
+
+<p><b>When ToF fails:</b></p>
+<p><b>Sunlight:</b> Outdoor ambient IR saturates the sensor. The return signal drowns in solar IR. Works indoors only (or in darkness/shade outdoors).</p>
+<p><b>Multi-path interference:</b> In corners or concave surfaces, the emitted IR bounces multiple times before returning, corrupting the phase measurement. Creates systematic depth errors in corners.</p>
+<p><b>Phase wrapping:</b> The distance is computed from phase, which wraps at <code>d_max = c/(2f)</code>. At 20MHz modulation, d_max = 7.5m. Objects beyond d_max get aliased to closer distances. Multi-frequency ToF solves this but adds latency.</p>
+<p><b>Mixed pixels:</b> At object edges, the pixel receives returns from foreground and background. The phase averages them → flying pixels (same problem as discussed earlier).</p>
+
+<p><b>When structured light fails:</b></p>
+<p><b>Sunlight:</b> Same IR washout problem. Worse than ToF because the pattern contrast must be high.</p>
+<p><b>Textureless + patternless:</b> If the projected pattern doesn't reach a surface (too far, too dark), no depth. Range is limited to the projector power — typically 3-10m.</p>
+<p><b>Shiny/transparent surfaces:</b> The pattern reflects specularly or passes through, giving no usable signal.</p>
+<p><b>Multi-camera interference:</b> If two structured light cameras see each other's patterns, the matching becomes ambiguous. ToF cameras also interfere but are more robust to it.</p>
+
+<span class="key-point">Key insight: Both technologies fail outdoors in sunlight — this is the fundamental limitation of active IR depth sensors. Indoor: use either (ToF for speed, structured light for resolution). Outdoor: use stereo cameras (passive) or LiDAR (active laser, not affected by ambient IR). The environment dictates the sensor choice.</span>
+
+<span class="interview-tip">🎯 Interview tip: Summarize the decision matrix: "Indoor close-range → RealSense D405 (structured light) for manipulation, or Azure Kinect (ToF) for body tracking. Outdoor → stereo cameras or LiDAR. Both active IR methods fail in sunlight, and this is the first question I ask when choosing a depth sensor: indoor or outdoor?"</span>`
+  },
+  {
+    q: "How do you detect if your state estimator's sensor inputs are stale, delayed, or have dropped out? Design a sensor health monitoring system.",
+    diff: "advanced",
+    a: `<p>Sensor failures in the field are silent killers — the robot doesn't crash immediately, it just slowly drifts into bad behavior. A health monitoring system catches these failures before the downstream effects become catastrophic.</p>
+
+<p><b>What to monitor per sensor:</b></p>
+
+<span class="formula">For each sensor stream:
+  1. Arrival rate:     Is data arriving at expected frequency?
+  2. Latency:          Is the time between timestamp and arrival growing?
+  3. Data validity:    Are values within physical bounds?
+  4. Consistency:      Does this sensor agree with others?
+  5. Innovation:       Does the EKF's innovation for this sensor look normal?</span>
+
+<p><b>1. Arrival rate monitoring:</b></p>
+<p>Track the inter-arrival time. If the IMU should arrive every 1ms (1000Hz) and you haven't received data in 10ms, flag a warning. After 50ms, declare dropout and increase the EKF's process noise to reflect growing uncertainty. Implement with a watchdog timer per sensor.</p>
+
+<p><b>2. Latency monitoring:</b></p>
+<p>Compare the message timestamp to the system clock at arrival: <code>latency = t_received - t_stamped</code>. Baseline each sensor during startup. If latency increases by 2x, the processing pipeline is backing up (CPU overloaded, USB bandwidth saturated). Growing latency precedes dropout — it's the early warning.</p>
+
+<p><b>3. Data validity:</b></p>
+<p>Physical bounds checks: IMU acceleration should be within [-20, 20] m/s² for a ground robot (anything higher is a spike or hardware fault). Joint encoders should be within joint limits. LiDAR ranges should be within [0.1, max_range]. NaN and Inf checks on every field.</p>
+
+<p><b>4. Cross-sensor consistency:</b></p>
+<p>Compare redundant information. Wheel odometry velocity vs IMU-integrated velocity — if they diverge by more than 30%, one is faulty. LiDAR-derived yaw rate vs gyroscope yaw rate. Camera-based velocity vs encoder velocity. Pairwise comparison identifies the faulty sensor when two disagree but one agrees with a third.</p>
+
+<p><b>5. EKF innovation monitoring:</b></p>
+<p>The EKF innovation (measurement residual) for each sensor should follow the predicted distribution. Compute NIS (Normalized Innovation Squared) per sensor. If NIS consistently exceeds the chi-squared 95% threshold, that sensor's data is inconsistent with the model — either the sensor is drifting or the model is wrong.</p>
+
+<p><b>Response actions:</b></p>
+<span class="formula">WARNING:  Latency spike / intermittent dropouts
+  → Log, increase R for that sensor (trust it less)
+
+DEGRADED: Sensor missing for > 0.5s or NIS consistently high
+  → Disable sensor in EKF, increase Q (uncertainty grows faster)
+  → Alert operator, reduce robot speed
+
+CRITICAL: Multiple sensors degraded or EKF diverging
+  → Stop the robot, switch to safe mode
+  → Attempt recovery (restart sensor drivers)</span>
+
+<span class="key-point">Key insight: Health monitoring isn't a nice-to-have — it's what separates a demo from a deployable system. In the field, sensors WILL fail: cables vibrate loose, USB bandwidth saturates, cameras fog up, LiDAR gets occluded by mud. The monitoring system is your safety net between sensor failure and robot crash.</span>
+
+<span class="interview-tip">🎯 Interview tip: Describe a concrete implementation: "I implement a SensorHealthMonitor class that tracks arrival rate, latency, and NIS per sensor. When a sensor degrades, it automatically inflates the measurement noise R in the EKF, making the filter rely more on other sensors. If multiple sensors degrade, it triggers a safe stop." Show the graceful degradation design.</span>`
+  },
+  {
+    q: "Your visual odometry system works in a well-lit office but fails in a warehouse with uniform walls and sparse features. Explain why and how you'd fix it.",
+    diff: "advanced",
+    a: `<p>Visual odometry (VO) tracks camera motion by matching features between consecutive frames. It fails when feature matching fails — and the warehouse environment attacks every assumption VO makes.</p>
+
+<p><b>Why the warehouse fails:</b></p>
+
+<p><b>1. Textureless surfaces:</b> Feature detectors (ORB, SIFT, FAST) need texture — edges, corners, patterns. Plain white walls, concrete floors, and uniform metal shelving have almost no features. The detector finds 10 features per frame instead of 200, and half are on distant shelving that provides poor parallax.</p>
+
+<p><b>2. Repetitive structure:</b> Warehouse aisles look identical — same shelving pattern repeating. Feature matching finds many candidate matches but they're ambiguous (feature A in frame N matches 5 features in frame N+1 that all look the same). This causes wrong correspondences and catastrophic pose estimates.</p>
+
+<p><b>3. Lighting variation:</b> Warehouses often have harsh overhead lighting with deep shadows between aisles. Moving between aisles causes dramatic brightness changes that confuse feature matching (descriptors change with illumination).</p>
+
+<p><b>4. Large uniform regions:</b> Wide FOV sees mostly floor and ceiling — both featureless. Only the narrow band of shelving has features, reducing the effective FOV for VO.</p>
+
+<p><b>Fixes:</b></p>
+
+<p><b>1. Switch to direct methods:</b> Instead of feature-based VO (ORB-SLAM), use direct methods (DSO, LSD-SLAM) that track pixel intensity gradients rather than sparse features. Direct methods work on weak texture because they use ALL pixels with ANY gradient, not just strong corners. They can track on a surface with a very faint pattern that feature detectors would ignore.</p>
+
+<p><b>2. Add an IMU (Visual-Inertial Odometry):</b> VIO (VINS-Mono, BASALT) uses the IMU to predict the camera motion between frames. This gives a strong initial guess for feature matching, reducing wrong matches. More importantly, when features are scarce, the IMU carries the estimate through the featureless period. This is the single most impactful fix.</p>
+
+<p><b>3. Add artificial features:</b> Place AprilTags or other fiducial markers at strategic locations (aisle ends, intersections). This is exactly what I did at <b>Flomobility</b> — the facility was an indoor environment with some featureless zones, and AprilTags provided reliable absolute position corrections where natural features were sparse.</p>
+
+<p><b>4. Use a multi-sensor approach:</b> Replace VO with LiDAR odometry. LiDAR works on the geometric structure (walls, shelving) even when there's no visual texture. The warehouse has strong geometric features (planar walls, shelving at regular depths) that LiDAR can track perfectly. Combine with IMU for a VIO-like pipeline but using LiDAR instead of cameras.</p>
+
+<p><b>5. Learned features:</b> Replace handcrafted feature detectors with learned ones (SuperPoint, R2D2) that are trained to find features in low-texture environments. Combine with learned matchers (SuperGlue, LightGlue) that handle repetitive structure through attentional context.</p>
+
+<span class="key-point">Key insight: Visual odometry assumes a "feature-rich" environment. When that assumption fails, the right response isn't to fix the VO algorithm — it's to change the sensor modality. LiDAR doesn't need texture. IMU doesn't need features. AprilTags guarantee features where you need them. The best perception system adapts its sensor weighting to the environment.</span>
+
+<span class="interview-tip">🎯 Interview tip: Show the hierarchy of fixes: "First, I'd add an IMU to make it VIO — this alone often fixes intermittent feature failures. If that's not enough, I'd add AprilTags at key locations like I did at Flomobility. For a warehouse-scale deployment, I'd switch to LiDAR odometry because the geometric structure is more reliable than visual features in that environment."</span>`
+  },
+  {
+    q: "What is a point cloud and how do you efficiently process one for obstacle detection? A naive implementation processes 130K points at 2Hz — you need 10Hz.",
+    diff: "intermediate",
+    a: `<p>A <b>point cloud</b> is a set of 3D points {(x, y, z)} representing the surfaces measured by a range sensor (LiDAR, depth camera). Each point may also carry intensity, color, or ring/channel information. A single 3D LiDAR scan produces 30K-300K points.</p>
+
+<p><b>Naive obstacle detection pipeline:</b></p>
+<span class="formula">1. Receive 130K points
+2. Ground plane extraction (RANSAC)
+3. Remove ground points
+4. Cluster remaining points (DBSCAN/Euclidean clustering)
+5. Bounding box each cluster → obstacles</span>
+
+<p>At 130K points, step 2 takes ~200ms (RANSAC with high outlier ratio) and step 4 takes ~300ms (DBSCAN with k-d tree construction is O(N·log(N))). Total: ~500ms = 2Hz.</p>
+
+<p><b>Optimization strategy to reach 10Hz (100ms budget):</b></p>
+
+<p><b>1. Voxel grid downsampling (biggest win, 5x speedup):</b></p>
+<p>Replace each voxel (3D cube of size 5-10cm) with its centroid. 130K points → 15K points. The ground plane and clusters are still detectable at this resolution, but every downstream operation runs on 10x fewer points. <code>pcl::VoxelGrid</code> filter, runs in ~5ms.</p>
+
+<p><b>2. Height-based ground removal instead of RANSAC (10x speedup on ground step):</b></p>
+<p>If the robot has a good state estimate (EKF with IMU), you know the ground plane equation: <code>z_world ≈ ground_height</code>. Remove all points with <code>z < ground_height + 0.1m</code>. This is O(N) — one pass through the data, ~2ms for 15K points. No RANSAC needed. Falls back to RANSAC only if the IMU is unreliable or terrain is uneven.</p>
+
+<p><b>3. Organized point cloud projection (2x speedup on clustering):</b></p>
+<p>Project the 3D points into a 2D range image (organized by azimuth and elevation). Connected component labeling on the range image is O(N) — much faster than 3D Euclidean clustering. Each connected component in the range image corresponds to a cluster in 3D. This is what many LiDAR processing pipelines use (SqueezeSeg, RangeNet++).</p>
+
+<p><b>4. Region of interest filtering:</b></p>
+<p>Only process points within the robot's planning horizon (e.g., 20m ahead, ±5m lateral). Discard everything else. For a forward-facing navigation task, this removes 30-50% of points immediately.</p>
+
+<p><b>5. Temporal consistency:</b></p>
+<p>Track obstacles across frames. If a cluster was detected in the previous frame at location X, only search near X in the current frame. This reduces the search space for clustering and provides smoother obstacle tracks.</p>
+
+<p><b>Optimized pipeline timing:</b></p>
+<span class="formula">ROI filter:          ~2ms  (discard far/behind points)
+Voxel downsample:     ~5ms  (130K → 15K)
+Height ground removal: ~2ms  (O(N) height filter)
+Range image cluster:  ~10ms (2D connected components)
+Bounding boxes:       ~1ms  (per-cluster min/max)
+Total:               ~20ms = 50Hz ✓</span>
+
+<span class="key-point">Key insight: The 2Hz → 10Hz improvement comes from algorithmic changes, not hardware. Voxel downsampling + height-based ground removal + 2D range image clustering replaces the expensive RANSAC + 3D DBSCAN. Each substitution preserves the output quality but reduces computational complexity from O(N²) operations to O(N).</span>
+
+<span class="interview-tip">🎯 Interview tip: Quantify each optimization: "Voxel grid: 5x fewer points. Height filter instead of RANSAC: 100x faster ground removal. Range image clustering instead of 3D DBSCAN: 5x faster clustering. Combined: 500ms → 20ms." Show you know WHERE the time goes and HOW to fix each bottleneck.</span>`
+  },
+  {
+    q: "You need to detect objects for a pick-and-place task. Compare classical segmentation (region growing, color thresholding) vs deep learning (YOLO, Mask R-CNN). When would you still use classical methods?",
+    diff: "intermediate",
+    a: `<p><b>Classical methods:</b></p>
+<p><b>Color thresholding:</b> Convert to HSV, threshold by hue/saturation ranges. Detects objects of known color (red balls, blue bins). Fast (< 1ms), no training data, no GPU. But fragile — lighting changes shift the color distribution, and it can't distinguish objects of the same color.</p>
+<p><b>Region growing:</b> Start from seed points, expand the region by adding neighboring pixels that meet a similarity criterion (color, normal, depth). Good for segmenting surfaces in point clouds. But requires good seed selection and is sensitive to parameter tuning.</p>
+<p><b>Template matching:</b> Slide a template over the image, find the best match. Works for known objects in known orientations. Fails with scale changes, rotation, and occlusion.</p>
+
+<p><b>Deep learning methods:</b></p>
+<p><b>YOLO (v8+):</b> Real-time object detection. Outputs 2D bounding boxes + class labels. Fast (~5ms on GPU). Handles arbitrary objects if trained on them. But only gives boxes, not masks — can't precisely segment the object boundary.</p>
+<p><b>Mask R-CNN:</b> Instance segmentation — per-pixel masks for each object. More precise than YOLO for grasping (you know exactly which pixels belong to the object). Slower (~50-100ms on GPU).</p>
+<p><b>Open-vocabulary (DETIC, Grounding DINO):</b> Detect objects from text descriptions without task-specific training. "Find the red mug" works without ever training on mugs. Slower but incredibly flexible.</p>
+
+<p><b>When classical methods WIN:</b></p>
+
+<p><b>1. Constrained industrial environments:</b> If you're picking the same red widget from a known bin under controlled lighting, color thresholding at 1000 FPS beats Mask R-CNN at 10 FPS. The simplicity is a feature — fewer failure modes, easier to validate for safety certification, no GPU needed.</p>
+
+<p><b>2. Depth-only segmentation:</b> When objects sit on a known flat surface (table, conveyor), height-based segmentation is trivial: remove the plane, cluster the remaining points, each cluster is an object. No training data, no visual model, works regardless of object appearance. I'd use this as the first pass in the PPO pick-and-place pipeline.</p>
+
+<p><b>3. No training data available:</b> Deep learning needs labeled datasets. If you're deploying on a novel object category with zero examples, classical methods (especially depth-based) still work because they don't depend on learned appearance.</p>
+
+<p><b>4. Edge/embedded deployment:</b> On a microcontroller or low-power ARM without a GPU, classical methods run in real-time while deep learning doesn't. Color thresholding on a Raspberry Pi: 30 FPS. YOLO on a Raspberry Pi: 0.5 FPS.</p>
+
+<p><b>5. Fiducial detection:</b> AprilTags, QR codes, ArUco markers — these are handcrafted visual features designed for classical detection. The AprilTag detector is fast, precise, and more reliable than training a neural network to detect tags.</p>
+
+<p><b>My practical approach:</b> Use depth-based segmentation as the backbone (plane removal + clustering), then use deep learning for object classification/pose estimation on the segmented clusters. Classical handles the geometry, learning handles the semantics. This is what I'd do for the pick-and-place system.</p>
+
+<span class="key-point">Key insight: Classical and learned methods aren't competing — they're complementary. Classical methods excel at geometric segmentation (plane fitting, clustering, thresholding) where the problem structure is known. Deep learning excels at semantic understanding (what is this object?) where the problem is too complex to hand-code. The best pipelines use both.</span>
+
+<span class="interview-tip">🎯 Interview tip: Show you're not dogmatic: "I wouldn't use deep learning for everything — if the problem is geometric (separate objects from table), depth-based segmentation is faster, more reliable, and doesn't need training data. I save deep learning for the hard part: 'which object is the target?' and 'where do I grasp it?'" This shows engineering maturity.</span>`
+  },
+  {
+    q: "A teammate proposes using a single neural network to go from raw camera pixels directly to motor commands (end-to-end). What are the advantages and risks compared to a modular pipeline?",
+    diff: "advanced",
+    a: `<p>This is the end-to-end vs modular debate — one of the most consequential architecture decisions in robotics. Both approaches have real strengths and real weaknesses.</p>
+
+<p><b>End-to-end (pixels → actions):</b></p>
+
+<p><b>Advantages:</b></p>
+<p><b>1. No information bottleneck:</b> A modular pipeline decides what to extract from the image (features, objects, depth) and throws away everything else. The end-to-end network can potentially learn to use any visual cue that's useful — including things you wouldn't think to extract (shadows indicating obstacles, subtle texture gradients for terrain type).</p>
+<p><b>2. Jointly optimized:</b> Each module in a modular pipeline is optimized independently (perception accuracy, planner optimality, controller stability). End-to-end optimizes the only thing that matters: task performance. The perception learns to extract exactly what the controller needs, not what a generic detector thinks is important.</p>
+<p><b>3. Less engineering:</b> No hand-designed pipeline, no module interfaces, no calibration between stages. Train one network on demonstrations or RL reward. This is the approach in <b>PRANA</b> — flow-matching from DINOv2 visual features to robot actions, bypassing explicit perception.</p>
+
+<p><b>Risks:</b></p>
+<p><b>1. Black box — undebuggable:</b> When the robot crashes, you can't ask "was it a perception failure or a control failure?" It's a single network. In a modular system, you can visualize the detected objects, the planned path, and the control commands independently. This is critical for safety certification — regulators need to understand why a robot made a decision.</p>
+<p><b>2. Distribution shift is catastrophic:</b> If the camera sees something it wasn't trained on (new lighting, new objects, lens fog), the output can be arbitrary. A modular pipeline degrades gracefully — the detector says "I don't see anything" and the planner stops. An end-to-end network might output confident but completely wrong motor commands.</p>
+<p><b>3. Data efficiency:</b> End-to-end needs enormous amounts of diverse data to learn perception, planning, and control simultaneously. Modular pipelines can leverage pre-trained components (YOLO for detection, MoveIt for planning) with minimal task-specific data.</p>
+<p><b>4. Generalization across embodiments:</b> An end-to-end policy is tied to one specific camera-robot configuration. Change the camera position or the robot kinematics and you retrain from scratch. Modular pipelines transfer — the same YOLO detector works on any camera, the same planner works on any arm.</p>
+
+<p><b>The pragmatic middle ground (what I'd recommend):</b></p>
+<p>Use a learned visual encoder (DINOv2, CLIP) that extracts general-purpose features from pixels, then feed those features to a learned policy network. This gives you the benefit of end-to-end optimization on the policy side while using a pre-trained, well-understood perception backbone. Add modular safety monitors on top — if the visual features look anomalous (out-of-distribution detection), trigger a safe stop regardless of what the policy wants to do.</p>
+
+<span class="key-point">Key insight: The field is converging on "modular with learned components" — not pure end-to-end and not pure hand-designed. Use pre-trained vision models for perception, learned policies for control, but keep the modules identifiable and monitorable. This gets the optimization benefits of end-to-end without the safety/debugging risks.</span>
+
+<span class="interview-tip">🎯 Interview tip: Don't take sides — show nuance: "End-to-end has clear advantages for optimization and avoiding information bottlenecks. But for deployment, I need debuggability and graceful degradation. My approach is the middle ground: pre-trained visual encoder + learned policy + modular safety monitors. This is what we used in PRANA — DINOv2 features into a flow-matching policy."</span>`
+  }
+];
+
+// ── LOCALSTORAGE HELPERS ──
+function getCompleted() { try { return JSON.parse(localStorage.getItem('roboprep_completed') || '{}'); } catch { return {}; } }
+function setCompleted(c) { localStorage.setItem('roboprep_completed', JSON.stringify(c)); }
+function getXP() { return parseInt(localStorage.getItem('roboprep_xp') || '0', 10); }
+function setXP(v) { localStorage.setItem('roboprep_xp', String(v)); }
+function getStreak() { try { return JSON.parse(localStorage.getItem('roboprep_streak') || '{"count":0,"lastDate":""}'); } catch { return {count:0,lastDate:''}; } }
+function updateStreak() { const s = getStreak(); const today = new Date().toISOString().slice(0,10); if (s.lastDate === today) return; const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10); s.count = (s.lastDate === yesterday) ? s.count + 1 : 1; s.lastDate = today; localStorage.setItem('roboprep_streak', JSON.stringify(s)); }
+
+let currentFilter = 'all'; let searchTerm = '';
+
+function refreshNav() { updateStreak(); document.getElementById('nav-xp').textContent = getXP(); document.getElementById('nav-streak').textContent = getStreak().count; const c = getCompleted(); let total = 0; for (const k in c) { if (k.startsWith(SECTION_KEY + '-') && c[k]) total++; } document.getElementById('nav-done').textContent = total; }
+function refreshProgress() { const c = getCompleted(); let done = 0; for (let i = 0; i < QUESTIONS.length; i++) { if (c[SECTION_KEY + '-' + i]) done++; } document.getElementById('prog-text').textContent = done + ' / ' + QUESTIONS.length; document.getElementById('prog-bar').style.width = (done / QUESTIONS.length * 100) + '%'; }
+
+function renderCards() {
+  const list = document.getElementById('qa-list'); list.innerHTML = ''; const c = getCompleted();
+  QUESTIONS.forEach((item, idx) => {
+    if (currentFilter !== 'all' && item.diff !== currentFilter) return;
+    if (searchTerm && !item.q.toLowerCase().includes(searchTerm.toLowerCase())) return;
+    const key = SECTION_KEY + '-' + idx; const done = !!c[key];
+    const card = document.createElement('div');
+    card.className = 'qa-card' + (done ? ' completed' : '');
+    card.style.animationDelay = (idx * 0.03) + 's';
+    card.innerHTML = `<div class="qa-question" data-idx="${idx}"><span class="qa-num">${String(idx + 1).padStart(2, '0')}</span><span class="qa-text">${item.q}</span><div class="qa-badges"><span class="diff-badge ${item.diff}">${item.diff}</span><span class="qa-chevron">▾</span></div></div><div class="qa-answer"><div class="qa-answer-inner">${item.a}<button class="review-btn ${done ? 'done' : ''}" data-idx="${idx}">${done ? '✓ Reviewed' : '☐ Mark as Reviewed'}</button></div></div>`;
+    list.appendChild(card);
+  });
+  list.querySelectorAll('.qa-question').forEach(el => { el.addEventListener('click', () => { const card = el.parentElement; const wasOpen = card.classList.contains('open'); list.querySelectorAll('.qa-card.open').forEach(c => c.classList.remove('open')); if (!wasOpen) card.classList.add('open'); }); });
+  list.querySelectorAll('.review-btn').forEach(el => { el.addEventListener('click', (e) => { e.stopPropagation(); const idx = el.dataset.idx; const key = SECTION_KEY + '-' + idx; const c = getCompleted(); if (c[key]) { delete c[key]; setXP(Math.max(0, getXP() - 10)); } else { c[key] = true; setXP(getXP() + 10); } setCompleted(c); refreshNav(); refreshProgress(); renderCards(); }); });
+}
+
+document.querySelectorAll('.filter-chip').forEach(chip => { chip.addEventListener('click', () => { document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active')); chip.classList.add('active'); currentFilter = chip.dataset.diff; renderCards(); }); });
+document.getElementById('search-input').addEventListener('input', (e) => { searchTerm = e.target.value; renderCards(); });
+refreshNav(); refreshProgress(); renderCards();
+</script>
+</body>
+</html>

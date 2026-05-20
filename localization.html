@@ -1,0 +1,827 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROBOPREP — Localization & State Estimation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-deep: #060a12;
+  --bg-main: #0a0e17;
+  --bg-card: #111827;
+  --bg-card-hover: #162032;
+  --bg-card-open: #0f1b2d;
+  --border: #1e2a3a;
+  --border-glow: #263248;
+  --text-primary: #e8ecf1;
+  --text-secondary: #8892a4;
+  --text-muted: #4a5568;
+  --cyan: #00e5ff;
+  --cyan-dim: rgba(0,229,255,0.12);
+  --orange: #ff6b35;
+  --orange-dim: rgba(255,107,53,0.12);
+  --green: #00e676;
+  --green-dim: rgba(0,230,118,0.12);
+  --purple: #b388ff;
+  --purple-dim: rgba(179,136,255,0.12);
+  --yellow: #ffd740;
+  --yellow-dim: rgba(255,215,64,0.12);
+  --section-accent: var(--green);
+  --section-dim: var(--green-dim);
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-sans: 'DM Sans', sans-serif;
+}
+
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg-deep);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,230,118,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,230,118,0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.navbar {
+  position: fixed; top: 0; left: 0; right: 0; height: 64px;
+  background: rgba(6,10,18,0.88);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; z-index: 100;
+}
+.logo { font-family: var(--font-mono); font-weight: 800; font-size: 1.3rem; letter-spacing: 3px; color: var(--cyan); text-shadow: 0 0 20px rgba(0,229,255,0.4); text-decoration: none; }
+.logo span { color: var(--text-muted); font-weight: 400; }
+.nav-stats { display: flex; gap: 20px; align-items: center; font-family: var(--font-mono); font-size: 0.78rem; }
+.nav-stat { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+.nav-stat .val { color: var(--text-primary); font-weight: 600; }
+.nav-stat .icon { font-size: 1rem; }
+
+.section-header {
+  position: relative; z-index: 1; margin-top: 64px;
+  padding: 48px 24px 20px; max-width: 900px; margin-left: auto; margin-right: auto;
+}
+.back-link { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); text-decoration: none; margin-bottom: 20px; transition: color 0.2s; }
+.back-link:hover { color: var(--text-secondary); }
+.section-tag { font-family: var(--font-mono); font-size: 0.68rem; font-weight: 600; letter-spacing: 2.5px; text-transform: uppercase; color: var(--section-accent); margin-bottom: 8px; }
+.section-title { font-family: var(--font-mono); font-size: clamp(1.5rem, 4vw, 2rem); font-weight: 800; margin-bottom: 8px; }
+.section-desc { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 24px; }
+
+.progress-wrap { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.progress-text { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); min-width: 70px; }
+.progress-bar-bg { flex: 1; height: 6px; background: var(--bg-card); border-radius: 100px; overflow: hidden; border: 1px solid var(--border); }
+.progress-bar-fill { height: 100%; background: var(--section-accent); border-radius: 100px; transition: width 0.5s ease; box-shadow: 0 0 10px rgba(0,230,118,0.3); }
+
+.filters {
+  position: relative; z-index: 1; max-width: 900px; margin: 0 auto 24px; padding: 0 24px;
+  display: flex; gap: 10px; flex-wrap: wrap; align-items: center;
+}
+.filter-chip { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; letter-spacing: 1px; padding: 7px 16px; border-radius: 100px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
+.filter-chip:hover { border-color: var(--text-muted); color: var(--text-secondary); }
+.filter-chip.active { background: var(--section-dim); border-color: var(--section-accent); color: var(--section-accent); }
+.search-input { flex: 1; min-width: 160px; font-family: var(--font-mono); font-size: 0.78rem; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary); outline: none; transition: border-color 0.2s; }
+.search-input::placeholder { color: var(--text-muted); }
+.search-input:focus { border-color: var(--section-accent); }
+
+.qa-list { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 0 24px 80px; display: flex; flex-direction: column; gap: 12px; }
+.qa-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: border-color 0.3s; }
+.qa-card:hover { border-color: var(--border-glow); }
+.qa-card.completed { border-left: 3px solid var(--green); }
+.qa-card.open { background: var(--bg-card-open); border-color: var(--border-glow); }
+.qa-question { display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px; cursor: pointer; user-select: none; }
+.qa-num { font-family: var(--font-mono); font-size: 0.7rem; font-weight: 700; color: var(--section-accent); min-width: 28px; padding-top: 2px; }
+.qa-text { flex: 1; font-size: 0.95rem; font-weight: 600; line-height: 1.5; }
+.qa-badges { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.diff-badge { font-family: var(--font-mono); font-size: 0.6rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 10px; border-radius: 100px; }
+.diff-badge.core { background: var(--green-dim); color: var(--green); }
+.diff-badge.intermediate { background: var(--orange-dim); color: var(--orange); }
+.diff-badge.advanced { background: var(--purple-dim); color: var(--purple); }
+.qa-chevron { font-size: 1rem; color: var(--text-muted); transition: transform 0.3s; flex-shrink: 0; padding-top: 2px; }
+.qa-card.open .qa-chevron { transform: rotate(180deg); }
+
+.qa-answer { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+.qa-card.open .qa-answer { max-height: 5000px; }
+.qa-answer-inner { padding: 0 20px 20px 60px; font-size: 0.9rem; line-height: 1.75; color: var(--text-secondary); }
+.qa-answer-inner b { color: var(--text-primary); }
+.qa-answer-inner code { font-family: var(--font-mono); font-size: 0.8rem; background: rgba(0,230,118,0.08); color: var(--green); padding: 2px 7px; border-radius: 4px; }
+.formula { display: block; font-family: var(--font-mono); font-size: 0.82rem; background: rgba(179,136,255,0.08); color: var(--purple); border-left: 3px solid var(--purple); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; overflow-x: auto; white-space: pre-wrap; }
+.key-point { display: block; background: var(--green-dim); border-left: 3px solid var(--green); padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; color: var(--text-primary); font-size: 0.85rem; }
+.interview-tip { display: block; background: var(--orange-dim); border-left: 3px solid var(--orange); padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; color: var(--text-primary); font-size: 0.85rem; }
+.qa-answer-inner p { margin-bottom: 10px; }
+.review-btn { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 1px; padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; margin-top: 16px; transition: all 0.2s; }
+.review-btn:hover { border-color: var(--green); color: var(--green); }
+.review-btn.done { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+
+@media (max-width: 640px) {
+  .navbar { padding: 0 16px; }
+  .nav-stats { gap: 10px; }
+  .nav-stat span:not(.icon):not(.val) { display: none; }
+  .section-header { padding: 40px 16px 16px; }
+  .filters { padding: 0 16px; }
+  .qa-list { padding: 0 16px 60px; }
+  .qa-answer-inner { padding: 0 16px 16px 40px; }
+  .qa-question { padding: 14px 16px; }
+}
+
+@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.qa-card { animation: fadeUp 0.35s ease both; }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="logo">ROBOPREP<span>.io</span></a>
+  <div class="nav-stats">
+    <div class="nav-stat"><span class="icon">⚡</span><span>XP</span><span class="val" id="nav-xp">0</span></div>
+    <div class="nav-stat"><span class="icon">🔥</span><span>Streak</span><span class="val" id="nav-streak">0</span></div>
+    <div class="nav-stat"><span class="icon">✓</span><span class="val" id="nav-done">0</span><span>done</span></div>
+  </div>
+</nav>
+
+<div class="section-header">
+  <a href="index.html" class="back-link">← Back to Dashboard</a>
+  <div class="section-tag">SECTION 02</div>
+  <h1 class="section-title">Localization & State Estimation</h1>
+  <p class="section-desc">Kalman filters, EKF/UKF, particle filters, sensor fusion, SLAM, IMU integration, observability, and GPS-denied navigation — everything for estimating where your robot is and what it's doing.</p>
+  <div class="progress-wrap">
+    <span class="progress-text" id="prog-text">0 / 20</span>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="prog-bar" style="width:0%"></div></div>
+  </div>
+</div>
+
+<div class="filters">
+  <button class="filter-chip active" data-diff="all">All</button>
+  <button class="filter-chip" data-diff="core">Core</button>
+  <button class="filter-chip" data-diff="intermediate">Intermediate</button>
+  <button class="filter-chip" data-diff="advanced">Advanced</button>
+  <input type="text" class="search-input" placeholder="Search questions..." id="search-input">
+</div>
+
+<div class="qa-list" id="qa-list"></div>
+
+<script>
+const SECTION_KEY = 'localization';
+
+const QUESTIONS = [
+  {
+    q: "Why do robots need state estimation? Can't we just read the sensors directly?",
+    diff: "core",
+    a: `<p><b>Sensors are noisy, incomplete, and asynchronous.</b> No single sensor gives you the full, accurate state of a robot. State estimation fuses multiple noisy sensor readings into a single coherent state estimate that's better than any individual sensor.</p>
+
+<p><b>Three fundamental problems:</b></p>
+<p>1. <b>Noise:</b> Every sensor has noise. An IMU accelerometer might read 9.85 ± 0.3 m/s² when gravity is 9.81. An encoder might have quantization error. Raw readings oscillate and can't be used directly for smooth control.</p>
+<p>2. <b>Incomplete information:</b> An IMU gives acceleration and angular velocity, but not position. Wheel encoders give velocity but drift over time. No single sensor gives the full state (position, velocity, orientation, angular velocity).</p>
+<p>3. <b>Different rates:</b> IMU runs at 1000 Hz, cameras at 30 Hz, LiDAR at 10 Hz. You need a framework to fuse these asynchronous measurements into a consistent state at the controller's rate.</p>
+
+<p>A <b>state estimator</b> (Kalman filter, EKF, etc.) solves all three: it filters noise, fuses complementary sensors, and handles asynchronous measurements through the predict-update cycle.</p>
+
+<p>At <b>SpaceData</b>, the indoor GPS-denied navigation needed exactly this — no GPS meant I couldn't just read a position sensor. I had to fuse IMU, wheel odometry, and LiDAR scan matching to estimate the robot's pose.</p>
+
+<span class="key-point">Key insight: Controllers assume they have access to the true state. State estimation is what bridges the gap between noisy sensor reality and the clean state vector your MPC or PD controller expects. Bad estimation = bad control, no matter how good the controller is.</span>
+
+<span class="interview-tip">🎯 Interview tip: Start with the three problems (noise, incompleteness, asynchrony) then say "That's why every real robot has a state estimator between the sensors and the controller — it's the foundation of the entire control stack."</span>`
+  },
+  {
+    q: "Derive the Kalman Filter. Walk me through the predict and update steps.",
+    diff: "core",
+    a: `<p>The <b>Kalman Filter (KF)</b> is the optimal state estimator for linear systems with Gaussian noise. It maintains a <b>mean</b> (state estimate) and <b>covariance</b> (uncertainty) and updates them in two steps.</p>
+
+<p><b>System model:</b></p>
+<span class="formula">xₖ = A·xₖ₋₁ + B·uₖ₋₁ + wₖ    (process model, w ~ N(0, Q))
+zₖ = H·xₖ + vₖ                 (measurement model, v ~ N(0, R))</span>
+
+<p><b>PREDICT step</b> — propagate state and uncertainty through the dynamics:</p>
+<span class="formula">x̂ₖ⁻ = A·x̂ₖ₋₁ + B·uₖ₋₁          (predicted state)
+Pₖ⁻ = A·Pₖ₋₁·Aᵀ + Q              (predicted covariance)</span>
+
+<p>This says: "Based on my model, I expect to be here, with this much uncertainty." The process noise Q inflates the covariance — we become less certain over time without measurements.</p>
+
+<p><b>UPDATE step</b> — incorporate a new measurement to correct the prediction:</p>
+<span class="formula">Kₖ = Pₖ⁻·Hᵀ·(H·Pₖ⁻·Hᵀ + R)⁻¹    (Kalman gain)
+x̂ₖ = x̂ₖ⁻ + Kₖ·(zₖ - H·x̂ₖ⁻)       (corrected state)
+Pₖ = (I - Kₖ·H)·Pₖ⁻                (corrected covariance)</span>
+
+<p><b>Intuition for the Kalman gain K:</b> It's a weighting factor. If measurement noise R is small (sensor is accurate), K is large → trust the measurement more. If prediction uncertainty P⁻ is small (model is accurate), K is small → trust the prediction more. The gain automatically balances model vs sensor trust.</p>
+
+<p>The term <code>(zₖ - H·x̂ₖ⁻)</code> is the <b>innovation</b> — the difference between what we measured and what we expected. If innovation is zero, the measurement confirms our prediction and nothing changes.</p>
+
+<span class="key-point">Key insight: The Kalman filter is optimal in the MMSE sense for linear Gaussian systems. "Optimal" means no other estimator using the same information can achieve lower estimation error variance. This is why it's the gold standard.</span>
+
+<span class="interview-tip">🎯 Interview tip: Draw the predict-update cycle on a whiteboard. Show the covariance growing during predict (more uncertain) and shrinking during update (measurement reduces uncertainty). This visual explanation is more memorable than equations.</span>`
+  },
+  {
+    q: "What is the Extended Kalman Filter (EKF) and when does it fail?",
+    diff: "core",
+    a: `<p>The <b>EKF</b> extends the Kalman filter to nonlinear systems by <b>linearizing</b> the dynamics and measurement models around the current estimate at each step.</p>
+
+<p>For a nonlinear system <code>xₖ = f(xₖ₋₁, uₖ₋₁) + w</code> and <code>zₖ = h(xₖ) + v</code>:</p>
+
+<span class="formula">PREDICT:
+  x̂ₖ⁻ = f(x̂ₖ₋₁, uₖ₋₁)                (nonlinear propagation)
+  Fₖ = ∂f/∂x |_{x̂ₖ₋₁}                  (Jacobian of dynamics)
+  Pₖ⁻ = Fₖ·Pₖ₋₁·Fₖᵀ + Q
+
+UPDATE:
+  Hₖ = ∂h/∂x |_{x̂ₖ⁻}                   (Jacobian of measurement)
+  Kₖ = Pₖ⁻·Hₖᵀ·(Hₖ·Pₖ⁻·Hₖᵀ + R)⁻¹
+  x̂ₖ = x̂ₖ⁻ + Kₖ·(zₖ - h(x̂ₖ⁻))
+  Pₖ = (I - Kₖ·Hₖ)·Pₖ⁻</span>
+
+<p>The key difference from the standard KF: the state is propagated through the <b>nonlinear</b> function f, but the covariance is propagated through the <b>Jacobian</b> F (first-order Taylor approximation).</p>
+
+<p><b>When the EKF fails:</b></p>
+<p>1. <b>High nonlinearity:</b> If f or h is highly nonlinear, the first-order linearization is a poor approximation. The covariance becomes inconsistent — the filter thinks it's more certain than it actually is, and it can diverge.</p>
+<p>2. <b>Bad initialization:</b> If the initial estimate is far from the true state, the linearization point is wrong and the filter may never converge.</p>
+<p>3. <b>Multimodal distributions:</b> EKF assumes a single Gaussian. If the true posterior is multimodal (e.g., "I could be in room A or room B"), EKF collapses to one mode and ignores the other.</p>
+<p>4. <b>Incorrect noise parameters:</b> If Q or R are wrong, the filter becomes overconfident or sluggish. This is the most common failure in practice.</p>
+
+<span class="key-point">Key insight: The EKF's fatal flaw is that it approximates a nonlinear transformation of a Gaussian as still Gaussian. When the nonlinearity bends the distribution into something non-Gaussian, the EKF's uncertainty estimate becomes unreliable — and an overconfident estimator is worse than a conservative one.</span>
+
+<span class="interview-tip">🎯 Interview tip: When asked "when does EKF fail?", give concrete examples: "Bearing-only tracking where the range is highly uncertain — the banana-shaped posterior isn't Gaussian. Or robot kidnapping — the filter can't handle discontinuous pose changes."</span>`
+  },
+  {
+    q: "Compare EKF vs UKF vs Particle Filter. When would you use each?",
+    diff: "intermediate",
+    a: `<p><b>EKF (Extended Kalman Filter):</b> Linearizes via Jacobians. Fast, low memory. Works well when nonlinearities are mild and the state is low-dimensional. Most common in robotics for IMU fusion and odometry. Fails on highly nonlinear systems or multimodal distributions.</p>
+
+<p><b>UKF (Unscented Kalman Filter):</b> Uses <b>sigma points</b> — deterministic samples chosen to capture the mean and covariance of the distribution. These points are propagated through the nonlinear function, then the output statistics are reconstructed. No Jacobians needed, and it captures second-order nonlinear effects.</p>
+
+<span class="formula">UKF sigma points (2n+1 for state dimension n):
+  χ₀ = x̂
+  χᵢ = x̂ + (√((n+λ)P))ᵢ      for i = 1..n
+  χᵢ = x̂ - (√((n+λ)P))ᵢ₋ₙ    for i = n+1..2n</span>
+
+<p><b>Particle Filter:</b> Represents the distribution as a set of <b>weighted samples</b> (particles). Each particle is a hypothetical state. Propagate all particles through the dynamics, weight them by how well they explain the measurement, then resample. Can represent arbitrary distributions — multimodal, non-Gaussian, anything.</p>
+
+<p><b>When to use each:</b></p>
+<p><b>EKF:</b> Default choice for low-dimensional state estimation with mild nonlinearity. IMU fusion, wheel odometry, legged robot state estimation. Fast and well-understood.</p>
+<p><b>UKF:</b> When Jacobians are hard to derive or the nonlinearity is moderate. Attitude estimation with quaternions (where the manifold structure makes Jacobians tricky). Slightly more expensive than EKF but more accurate.</p>
+<p><b>Particle Filter:</b> When the distribution is multimodal or highly non-Gaussian. Global localization ("I'm lost, which room am I in?"), kidnapped robot problem, or any time you need to track multiple hypotheses. Expensive — scales poorly with state dimension (curse of dimensionality).</p>
+
+<span class="key-point">Key insight: EKF and UKF are parametric (assume Gaussian). Particle filter is non-parametric (can represent any distribution). The tradeoff is always computation vs representational power. For a 6-DOF robot state, EKF is fine. For localizing in a map with ambiguity, you need particles.</span>
+
+<span class="interview-tip">🎯 Interview tip: Frame it as a decision tree: "Is the system mildly nonlinear and unimodal? → EKF. Hard to linearize or moderate nonlinearity? → UKF. Multimodal or globally uncertain? → Particle filter. In practice, most robot state estimators are EKF because the state is low-dimensional and the dynamics are smooth."</span>`
+  },
+  {
+    q: "How would you estimate the state of a quadruped robot in a GPS-denied environment?",
+    diff: "intermediate",
+    a: `<p>This is a core problem in legged robotics. The state we need is the <b>body pose</b> (position + orientation in world frame) and <b>body velocity</b>. Here's the standard approach:</p>
+
+<p><b>Sensors available:</b> IMU (accelerometer + gyroscope), joint encoders, and optionally a LiDAR or camera.</p>
+
+<p><b>Step 1 — IMU propagation (predict):</b> Integrate the IMU at high rate (1 kHz) to propagate the state forward. The gyroscope gives angular velocity for orientation, and the accelerometer gives specific force for velocity/position. But IMU drifts — accelerometer bias causes position to diverge quadratically.</p>
+
+<p><b>Step 2 — Leg kinematics (update):</b> When a foot is in contact with the ground, it's a fixed point in the world frame. Using forward kinematics from joint encoders, I can compute the body position relative to the foot. This gives a <b>pseudo-GPS measurement</b> — a position update that corrects IMU drift. The contact detection comes from force sensors or contact estimation.</p>
+
+<span class="formula">Body position update during stance:
+  p_body = p_foot_world - FK(q_leg)
+  where FK is forward kinematics from foot to body</span>
+
+<p><b>Step 3 — EKF fusion:</b> The IMU is the predict step (high rate), and the leg kinematics provide the update step. The state vector typically includes position, velocity, orientation (as quaternion), IMU biases (gyro + accel), and foot contact positions.</p>
+
+<p><b>Step 4 — Bias estimation:</b> The IMU biases are included in the state vector and estimated online. The leg kinematics updates provide enough observability to estimate the accelerometer bias, which is the main drift source.</p>
+
+<p>At <b>SpaceData</b>, I worked on GPS-denied navigation for indoor disaster response. The approach was similar — IMU for high-rate prediction, then LiDAR scan matching and wheel odometry for position updates through the Nav2 stack.</p>
+
+<span class="key-point">Key insight: The key trick for legged robots is that foot contacts act as zero-velocity updates (like ZUPT in pedestrian navigation). Every time a foot is planted, you get a position fix. The alternating contacts of walking provide regular corrections to prevent IMU drift from diverging.</span>
+
+<span class="interview-tip">🎯 Interview tip: Draw the sensor fusion diagram: IMU → predict at 1 kHz, leg kinematics → update at 200 Hz, LiDAR → update at 10 Hz. Show how each sensor compensates for the others' weaknesses. This demonstrates systems-level thinking.</span>`
+  },
+  {
+    q: "Explain sensor fusion. What does it mean to fuse sensors and why is it necessary?",
+    diff: "core",
+    a: `<p><b>Sensor fusion</b> is the process of combining data from multiple sensors to produce a state estimate that is more accurate, more complete, and more robust than any single sensor could provide alone.</p>
+
+<p><b>Why it's necessary — every sensor has a weakness:</b></p>
+<p><b>IMU:</b> High rate (1 kHz), low latency, but drifts over time. Position diverges quadratically from accelerometer integration. Great for short-term, terrible for long-term.</p>
+<p><b>GPS:</b> No drift (absolute position), but low rate (1-10 Hz), high latency, and fails indoors/urban canyons.</p>
+<p><b>Camera:</b> Rich information, but affected by lighting, motion blur, and requires computation for feature extraction.</p>
+<p><b>LiDAR:</b> Accurate range, works in the dark, but expensive, lower rate, and fails in featureless environments (blank walls).</p>
+<p><b>Wheel encoders:</b> Smooth, high-rate velocity, but drift from wheel slip.</p>
+
+<p><b>Fusion architectures:</b></p>
+<p><b>Loosely coupled:</b> Each sensor produces its own pose estimate, then a filter fuses the poses. Simple but suboptimal — throws away information.</p>
+<p><b>Tightly coupled:</b> Raw sensor data goes directly into the filter's measurement model. More accurate because all information is preserved, but more complex to implement.</p>
+
+<p>The mathematical framework is usually a Kalman filter variant: the dynamics model is the predict step, and each sensor provides a measurement update. The filter automatically weights sensors by their uncertainty — if the IMU covariance is growing (drifting), the filter trusts the LiDAR update more.</p>
+
+<span class="key-point">Key insight: Sensor fusion is about complementarity — combining sensors whose strengths compensate for others' weaknesses. IMU covers the short-term gaps between slow GPS updates. LiDAR corrects IMU drift. The whole is greater than the sum of its parts.</span>
+
+<span class="interview-tip">🎯 Interview tip: Use the IMU+GPS example as the canonical case: "IMU gives 1 kHz updates but drifts. GPS gives absolute position but at 10 Hz. Fusing them in an EKF gives you 1 kHz accurate position — the IMU bridges between GPS fixes and GPS corrects IMU drift."</span>`
+  },
+  {
+    q: "What is the complementary filter and when would you use it over a Kalman filter?",
+    diff: "intermediate",
+    a: `<p>A <b>complementary filter</b> is a simple frequency-domain fusion technique that combines a high-pass filtered signal with a low-pass filtered signal. The classic application is IMU orientation estimation.</p>
+
+<p><b>The problem:</b> The gyroscope gives angular velocity — integrating it gives orientation, but it drifts over time (low-frequency error). The accelerometer can measure gravity direction (and thus tilt), but it's noisy and affected by dynamic acceleration (high-frequency error).</p>
+
+<p><b>The solution:</b> Trust the gyroscope for short-term (high-frequency) and the accelerometer for long-term (low-frequency):</p>
+
+<span class="formula">θ_estimate = α · (θ_prev + ω_gyro · dt) + (1 - α) · θ_accel
+where α ≈ 0.98 (trust gyro 98% short-term, accel 2% for drift correction)</span>
+
+<p>This is equivalent to a high-pass filter on the gyro integration + a low-pass filter on the accel measurement, and the gains sum to 1 — hence "complementary."</p>
+
+<p><b>When to use over Kalman:</b></p>
+<p>1. <b>Simplicity:</b> One line of code vs implementing a full EKF. Great for quick prototyping.</p>
+<p>2. <b>Low compute:</b> On a microcontroller where you can't afford EKF matrix operations.</p>
+<p>3. <b>Only estimating orientation:</b> If you just need roll/pitch from an IMU, a complementary filter is often good enough.</p>
+
+<p><b>When Kalman wins:</b> When you need to estimate more states (position, velocity, biases), fuse more than 2 sensors, or need uncertainty estimates (covariance). The complementary filter doesn't give you a covariance — you don't know how confident the estimate is.</p>
+
+<span class="key-point">Key insight: The complementary filter is actually a special case of the Kalman filter when the process and measurement noise are stationary and the system is linear. The α parameter is essentially the steady-state Kalman gain. But it's so much simpler to implement that it's often preferred for embedded IMU applications.</span>
+
+<span class="interview-tip">🎯 Interview tip: Show you understand both: "I'd use a complementary filter for quick IMU orientation on an embedded board, but switch to an EKF when I need full state estimation with multiple sensors and uncertainty tracking — like for the legged robot state estimator."</span>`
+  },
+  {
+    q: "What is observability in the context of state estimation? Give a robotics example of unobservable states.",
+    diff: "intermediate",
+    a: `<p><b>Observability</b> in estimation asks: "Given a sequence of measurements, can I uniquely determine the full internal state?" If a state is unobservable, no estimator — no matter how sophisticated — can estimate it from the available sensors.</p>
+
+<p>For a linear system <code>ẋ = Ax, y = Cx</code>, observability is checked via the observability matrix:</p>
+<span class="formula">O = [C; CA; CA²; ...; CAⁿ⁻¹],  rank(O) = n → fully observable</span>
+
+<p><b>Robotics examples of unobservable states:</b></p>
+
+<p><b>1. IMU-only odometry:</b> An IMU measures acceleration and angular velocity. Position requires double integration of acceleration, but the <b>initial position is unobservable</b> — the IMU can detect changes in velocity but not absolute position. Also, yaw (heading) is unobservable from accelerometer+gyroscope alone because gravity doesn't provide a horizontal reference. You need a magnetometer or external measurement for yaw.</p>
+
+<p><b>2. Monocular camera:</b> A single camera can't observe <b>metric scale</b>. A 1m object 2m away looks the same as a 2m object 4m away. Scale is unobservable from monocular vision alone — you need stereo, known landmark sizes, or an IMU to recover it.</p>
+
+<p><b>3. Legged robot on flat ground:</b> If the robot walks on a featureless flat plane with only leg kinematics and IMU, the <b>global position</b> is unobservable — there's no absolute reference. The estimator can track relative motion but will drift. Adding a LiDAR or camera with known landmarks makes global position observable.</p>
+
+<span class="key-point">Key insight: Observability tells you the theoretical limits of what you can estimate. If a state is unobservable, adding a better estimator won't help — you need a better sensor. Always check observability before designing the estimator.</span>
+
+<span class="interview-tip">🎯 Interview tip: Show the practical implication: "Before I design an EKF, I check observability to know which states I can actually estimate. If heading is unobservable from my sensor suite, I either add a magnetometer or accept that heading will drift — no amount of filter tuning fixes an observability gap."</span>`
+  },
+  {
+    q: "Explain SLAM. What are the main approaches and their tradeoffs?",
+    diff: "intermediate",
+    a: `<p><b>SLAM (Simultaneous Localization and Mapping)</b> solves the chicken-and-egg problem: to localize, you need a map; to build a map, you need to know your location. SLAM does both simultaneously.</p>
+
+<p><b>The two main paradigms:</b></p>
+
+<p><b>1. Filter-based SLAM (EKF-SLAM):</b> Augment the state vector with landmark positions. The state is [robot_pose, landmark_1, landmark_2, ...]. Each new landmark observation updates both the robot's pose and all landmark positions through the correlations in the covariance matrix.</p>
+<span class="formula">State: x = [x_robot, y_robot, θ, l₁_x, l₁_y, l₂_x, l₂_y, ...]
+Covariance: P is (3 + 2N) × (3 + 2N) for N landmarks</span>
+<p>Problem: the state grows with every new landmark, and covariance updates are O(N²). Doesn't scale beyond ~1000 landmarks.</p>
+
+<p><b>2. Graph-based SLAM (pose graph):</b> Each robot pose is a node, and each measurement (odometry or loop closure) is an edge with a constraint. SLAM becomes a graph optimization problem — minimize the total error across all constraints. Solved using nonlinear least squares (Gauss-Newton, Levenberg-Marquardt) with sparse solvers like <code>g2o</code> or <code>GTSAM</code>.</p>
+<p>This scales much better because the graph is sparse (each pose connects to only a few neighbors), and modern sparse solvers handle millions of nodes.</p>
+
+<p><b>Visual SLAM (ORB-SLAM, VINS-Mono):</b> Uses camera features as landmarks. Combines visual odometry (frame-to-frame tracking) with loop closure detection (recognizing previously visited places) and graph optimization.</p>
+
+<p><b>LiDAR SLAM (Cartographer, LOAM):</b> Uses point cloud registration (ICP, NDT) for odometry and loop closure. More robust to lighting but requires more compute for 3D point clouds.</p>
+
+<span class="key-point">Key insight: The breakthrough in SLAM was realizing it's a sparse optimization problem. The pose graph is sparse because each pose only connects to temporally adjacent poses and loop closures. This sparsity makes real-time SLAM possible even with millions of poses.</span>
+
+<span class="interview-tip">🎯 Interview tip: Say "Modern SLAM is graph-based — EKF-SLAM is historical. The key components are: a front-end for odometry and data association, a loop closure detector, and a back-end graph optimizer. I'd use Cartographer for LiDAR SLAM or ORB-SLAM3 for visual SLAM."</span>`
+  },
+  {
+    q: "What is dead reckoning and why does it fail?",
+    diff: "core",
+    a: `<p><b>Dead reckoning</b> estimates position by integrating velocity or acceleration over time from a known starting point. "I started here, I've been moving at this speed in this direction, so I must be there now."</p>
+
+<span class="formula">Position: p(t) = p(0) + ∫₀ᵗ v(τ) dτ
+With IMU:  v(t) = v(0) + ∫₀ᵗ a(τ) dτ,  p(t) = p(0) + ∫₀ᵗ v(τ) dτ</span>
+
+<p><b>Examples:</b> Wheel odometry (integrate wheel velocities), IMU integration (double-integrate acceleration), visual odometry (integrate frame-to-frame motion).</p>
+
+<p><b>Why it fails — unbounded drift:</b></p>
+<p>Integration accumulates errors. If your velocity estimate has a constant bias ε, your position error grows linearly: <code>error(t) = ε·t</code>. If your acceleration has a constant bias (IMU), position error grows <b>quadratically</b>: <code>error(t) = ½ε·t²</code>.</p>
+
+<p>For an IMU with accelerometer bias of 0.01 m/s²: after 10 seconds, position error is 0.5 m. After 60 seconds, it's 18 m. After 10 minutes, it's 1800 m. This is why pure IMU navigation is useless for long durations.</p>
+
+<p>Wheel odometry drifts from wheel slip, uneven terrain, and encoder noise. Visual odometry drifts from feature tracking errors and scale drift (monocular).</p>
+
+<p><b>The fix:</b> Dead reckoning provides the <b>predict step</b> in a filter. External measurements (GPS, landmarks, loop closures) provide the <b>update step</b> that corrects the drift. Dead reckoning alone is never sufficient for extended operation.</p>
+
+<span class="key-point">Key insight: Dead reckoning is great for high-rate, short-term estimates between external fixes. The IMU bridges the gap between GPS updates, wheel odometry bridges between LiDAR scans. But it must always be corrected by absolute measurements to prevent divergence.</span>
+
+<span class="interview-tip">🎯 Interview tip: Quantify the drift. "IMU accelerometer bias of 0.01 m/s² causes 18m position error after just one minute — that's why dead reckoning alone fails and we need sensor fusion." Concrete numbers show understanding.</span>`
+  },
+  {
+    q: "What does the covariance matrix represent in a Kalman filter and why should you track it?",
+    diff: "core",
+    a: `<p>The <b>covariance matrix P</b> represents the <b>uncertainty</b> in the state estimate. If the state is [x, y, θ], then P is a 3×3 matrix where:</p>
+
+<span class="formula">P = | σ²_x    σ_xy   σ_xθ  |
+    | σ_xy    σ²_y   σ_yθ  |
+    | σ_xθ    σ_yθ   σ²_θ  |
+
+Diagonal: variance of each state (how uncertain each one is)
+Off-diagonal: correlations between states</span>
+
+<p><b>What it means geometrically:</b> The covariance defines an uncertainty ellipsoid. The eigenvalues are the squared semi-axis lengths, and eigenvectors are the principal directions. A large eigenvalue along one direction means high uncertainty along that axis.</p>
+
+<p><b>Why track it:</b></p>
+<p>1. <b>Kalman gain depends on it:</b> The gain K is computed from P. If you don't track P correctly, K is wrong and the filter diverges. P is not optional — it's integral to the algorithm.</p>
+<p>2. <b>Confidence bounds:</b> P tells your controller how much to trust the state estimate. If position uncertainty is large, the controller can be more conservative. This is essential for safety.</p>
+<p>3. <b>Sensor scheduling:</b> High uncertainty in a particular state tells you which sensor to query next. If heading uncertainty is growing, trigger a landmark observation.</p>
+<p>4. <b>Consistency checking:</b> The innovation (measurement residual) should be consistent with the predicted measurement covariance. If innovations are much larger than expected, the filter is inconsistent — either the model or noise parameters are wrong.</p>
+
+<span class="key-point">Key insight: The covariance is what makes the Kalman filter a Bayesian estimator, not just a smoother. It tracks what you know AND what you don't know. A state estimate without uncertainty is just a guess — with uncertainty, it's a principled belief.</span>
+
+<span class="interview-tip">🎯 Interview tip: If asked "what does the covariance mean?", give the ellipsoid visualization: "If I project the 2D position covariance, I get an uncertainty ellipse. The major axis points in the direction of maximum uncertainty. For a robot driving straight, the ellipse is elongated along the direction of motion because odometry drift accumulates along that axis."</span>`
+  },
+  {
+    q: "How do you estimate IMU biases and why is it critical?",
+    diff: "intermediate",
+    a: `<p><b>IMU biases</b> are slowly varying offsets in the accelerometer and gyroscope readings. A gyroscope bias of 0.01 rad/s causes 0.57°/s of heading drift — after one minute, you're off by 34°. An accelerometer bias of 0.01 m/s² causes 18m of position drift per minute. These biases are the dominant error source in IMU-based navigation.</p>
+
+<p><b>Where biases come from:</b> Manufacturing imperfections, temperature changes, turn-on-to-turn-on variation (bias instability). MEMS IMUs (like those in robots) have much larger biases than tactical-grade IMUs.</p>
+
+<p><b>How to estimate biases:</b> Include them as states in the EKF. Augment the state vector:</p>
+
+<span class="formula">State: x = [position, velocity, orientation, b_accel, b_gyro]
+Bias dynamics: ḃ = 0 + noise    (random walk model)
+Measurement: a_meas = a_true + b_accel + noise
+             ω_meas = ω_true + b_gyro + noise</span>
+
+<p>The key is that biases are <b>observable</b> when you have external measurements (GPS, leg kinematics, landmarks). The logic: if the IMU says "I'm accelerating forward" but the GPS/leg kinematics say "I'm stationary," the filter infers that the difference is due to accelerometer bias and adjusts the bias estimate.</p>
+
+<p><b>Practical details:</b></p>
+<p>1. <b>Initialize biases during startup:</b> Hold the robot stationary for a few seconds. The accelerometer should read only gravity, and the gyroscope should read zero. Any deviation is the initial bias estimate.</p>
+<p>2. <b>Model biases as random walk:</b> <code>ḃ = w_bias</code> where w_bias has small spectral density. This captures slow drift without allowing the filter to change biases too fast.</p>
+<p>3. <b>Allan variance</b> characterizes the noise and bias properties of a specific IMU — it tells you the right Q_bias to use in the filter.</p>
+
+<span class="key-point">Key insight: Bias estimation is what makes long-duration IMU navigation possible. Without it, biases are absorbed into the state estimates (position, velocity) and cause divergence. With online bias estimation, the filter continuously calibrates the IMU using external measurements.</span>
+
+<span class="interview-tip">🎯 Interview tip: Mention the Allan variance analysis: "Before building the estimator, I'd characterize the IMU with an Allan variance analysis to determine the noise density and bias instability, which directly sets the process noise parameters Q in my EKF."</span>`
+  },
+  {
+    q: "What are the failure modes of the EKF in practice? How do you detect and handle them?",
+    diff: "advanced",
+    a: `<p><b>EKF failure modes and solutions:</b></p>
+
+<p><b>1. Divergence from linearization error:</b> The EKF linearizes around the current estimate. If the estimate is wrong (bad initialization or large disturbance), the linearization point is wrong, the update goes in the wrong direction, and the filter diverges.</p>
+<p><b>Detection:</b> Monitor the <b>Normalized Estimation Error Squared (NEES)</b>: <code>ε = eᵀP⁻¹e</code>. For a consistent filter, NEES should follow a chi-squared distribution. If NEES is consistently too large, the filter is inconsistent.</p>
+<p><b>Fix:</b> Use UKF for highly nonlinear systems, or increase process noise Q to make the filter less confident and more responsive to measurements.</p>
+
+<p><b>2. Overconfident covariance:</b> The covariance P becomes too small — the filter "thinks" it knows the state precisely when it doesn't. It then ignores measurements because K → 0. Common cause: underestimating Q or not modeling all error sources.</p>
+<p><b>Detection:</b> Innovation (measurement residual) exceeds the predicted uncertainty: <code>|zₖ - h(x̂ₖ⁻)| >> √(HPH'+R)</code>.</p>
+<p><b>Fix:</b> Increase Q, add a minimum covariance bound, or use covariance inflation techniques.</p>
+
+<p><b>3. Sensor dropout:</b> A sensor stops providing measurements. The filter keeps predicting without updates, and uncertainty grows. If the sensor comes back after a long gap, the linearization point may have drifted too far.</p>
+<p><b>Fix:</b> Detect large innovation on sensor return, temporarily inflate R (trust the measurement less) or re-initialize from the measurement.</p>
+
+<p><b>4. Wrong data association:</b> In SLAM, matching the wrong landmark to the wrong observation causes catastrophic updates. The filter jumps to a wrong state and may never recover.</p>
+<p><b>Fix:</b> Gating — reject measurements whose innovation exceeds a chi-squared threshold: <code>reject if (z - h(x̂))ᵀ S⁻¹ (z - h(x̂)) > χ²_threshold</code>.</p>
+
+<span class="key-point">Key insight: Most EKF failures in practice come from noise parameter tuning (Q and R), not from the algorithm itself. The single most impactful thing you can do is carefully calibrate your sensor noise models and add enough process noise to keep the filter humble.</span>
+
+<span class="interview-tip">🎯 Interview tip: Mention specific diagnostics: "I monitor NEES and innovation statistics to check filter consistency. If the innovation is persistently outside 2σ, either my measurement model or noise parameters are wrong." This shows you've debugged real filters.</span>`
+  },
+  {
+    q: "How does AprilTag-based localization work? Describe the full pipeline.",
+    diff: "intermediate",
+    a: `<p>I implemented this at <b>Flomobility</b> for indoor robot localization. AprilTags are fiducial markers — like QR codes but designed for precise pose estimation.</p>
+
+<p><b>The pipeline:</b></p>
+
+<p><b>1. Tag detection:</b> The camera image is thresholded to find black-and-white square patterns. The detector (e.g., <code>apriltag</code> library) identifies the four corners of each tag and decodes its ID from the binary pattern. This runs at 30+ FPS on modest hardware.</p>
+
+<p><b>2. Pose estimation (PnP):</b> Given the four corner pixel coordinates and the known physical size of the tag, solve the <b>Perspective-n-Point</b> problem to get the 6-DOF pose of the tag relative to the camera. This gives the transformation T_camera_tag.</p>
+
+<span class="formula">Known: tag corner positions in tag frame (from tag size)
+Measured: tag corner positions in image (pixel coordinates)
+Solve: T_camera_tag via PnP (cv2.solvePnP)</span>
+
+<p><b>3. Localization:</b> If we know where the tag is in the world frame (from a pre-installed map of tag positions), we can compute the camera (robot) pose in the world frame:</p>
+<span class="formula">T_world_camera = T_world_tag · T_tag_camera
+                = T_world_tag · (T_camera_tag)⁻¹</span>
+
+<p><b>4. Fusion:</b> Multiple tags may be visible simultaneously — each gives an independent pose estimate. Average them (weighted by distance — closer tags give better estimates) or fuse with an EKF alongside odometry.</p>
+
+<p>At Flomobility, I placed AprilTags at known positions around the facility. The robot's camera detected them continuously and used the pose estimates to correct odometry drift. The main challenges were: lighting variation (solved with adaptive thresholding), motion blur (solved by limiting detection to slower speeds), and partial occlusion (rejected via confidence thresholds).</p>
+
+<span class="key-point">Key insight: AprilTag localization gives you absolute position (no drift!) but only when tags are visible. It's the perfect complement to odometry — odometry covers the gaps between tag sightings, and tags correct odometry drift. This is loosely-coupled sensor fusion.</span>
+
+<span class="interview-tip">🎯 Interview tip: Mention the practical challenges — "The algorithm is straightforward, but the engineering challenges are lighting robustness, tag placement strategy (coverage vs cost), and handling the discrete nature of tag detections (not always visible)." This shows real deployment experience.</span>`
+  },
+  {
+    q: "Explain the difference between filter-based and optimization-based (graph-based) state estimation.",
+    diff: "advanced",
+    a: `<p><b>Filter-based</b> (Kalman filter family) processes measurements sequentially — one at a time, in order. It maintains the current state estimate and covariance, updating them incrementally. It only looks backward: once a measurement is processed, it can't revisit it.</p>
+
+<p><b>Optimization-based</b> (graph-based, factor graphs) collects all measurements over a time window and optimizes all states simultaneously. It can revisit and re-linearize old states when new information arrives (like a loop closure).</p>
+
+<span class="formula">Filter: P(xₖ | z₁:ₖ) — current state given all past measurements
+Graph:  P(x₁:ₖ | z₁:ₖ) — ALL states given all measurements (joint optimization)</span>
+
+<p><b>Practical differences:</b></p>
+<p><b>Filters</b> are computationally cheaper per step (constant time) but accumulate linearization errors over time. They can't improve old estimates with new information. Great for real-time state estimation (IMU + kinematics at 1 kHz).</p>
+
+<p><b>Graph optimization</b> is more accurate because it re-linearizes everything and handles loop closures naturally. But it's more expensive — solving the full graph takes time proportional to the number of states (though sparsity helps enormously). Used for SLAM back-ends and offline trajectory optimization.</p>
+
+<p><b>In practice, most systems use both:</b></p>
+<p>A fast EKF runs online for real-time state estimation (what the controller sees). A graph optimizer runs in the background for mapping and trajectory refinement. When the graph optimizer produces a better trajectory (e.g., after a loop closure), it feeds corrections back to the real-time filter.</p>
+
+<span class="key-point">Key insight: Filters are causal (only use past data). Graph methods are non-causal (can use future data to improve past estimates). This is why loop closures work in graph SLAM — detecting "I've been here before" lets you correct the entire past trajectory.</span>
+
+<span class="interview-tip">🎯 Interview tip: Say "For real-time control I use a filter; for mapping I use graph optimization. They're complementary — the filter gives the controller a fast estimate, and the graph optimizer gives the map a globally consistent one."</span>`
+  },
+  {
+    q: "What is the innovation (measurement residual) and how do you use it for filter health monitoring?",
+    diff: "intermediate",
+    a: `<p>The <b>innovation</b> is the difference between the actual measurement and the predicted measurement:</p>
+
+<span class="formula">yₖ = zₖ - h(x̂ₖ⁻)    (innovation / measurement residual)
+Sₖ = Hₖ·Pₖ⁻·Hₖᵀ + R  (innovation covariance)</span>
+
+<p>It tells you: "How surprised am I by this measurement?" If the innovation is small, the filter's prediction was good. If it's large, something is off — either a genuine state change or a sensor problem.</p>
+
+<p><b>Health monitoring with the innovation:</b></p>
+
+<p><b>1. Whiteness test:</b> In a well-tuned filter, the innovation sequence should be zero-mean white noise. If innovations show a trend or autocorrelation, the model is wrong (usually Q or R are mistuned).</p>
+
+<p><b>2. Normalized innovation squared (NIS):</b></p>
+<span class="formula">NIS = yₖᵀ · Sₖ⁻¹ · yₖ    (should follow χ² distribution with dim(z) DOF)</span>
+<p>If NIS is consistently too large, the filter is overconfident (P is too small or R is too small). If NIS is consistently too small, the filter is too conservative (wasting information).</p>
+
+<p><b>3. Outlier rejection (gating):</b> If a single measurement has NIS above a threshold (e.g., 99% chi-squared), reject it — it's likely an outlier or sensor fault. This prevents a single bad measurement from corrupting the state estimate.</p>
+
+<p><b>4. Fault detection:</b> Persistent large innovations from one sensor while others are normal → that sensor is faulty. Switch to using only the healthy sensors.</p>
+
+<span class="key-point">Key insight: The innovation is the filter's self-diagnostic tool. A well-designed filter monitors its own innovations and can detect when it's going wrong — before the downstream controller sees the consequences. This is essential for safety-critical systems.</span>
+
+<span class="interview-tip">🎯 Interview tip: Say "I always implement NIS monitoring alongside my EKF. It's the cheapest way to catch tuning issues and sensor faults in real time. If the NIS exceeds my chi-squared gate, I reject the measurement and flag the sensor."</span>`
+  },
+  {
+    q: "How does a particle filter work? Walk me through the algorithm.",
+    diff: "intermediate",
+    a: `<p>A <b>particle filter</b> represents the belief distribution as a set of weighted samples (particles), each a hypothesis for the current state. It handles arbitrary nonlinearities and non-Gaussian distributions.</p>
+
+<p><b>Algorithm (Sequential Monte Carlo):</b></p>
+
+<p><b>1. Initialize:</b> Generate N particles, each with a random state and equal weight 1/N. For global localization, spread particles uniformly across the map.</p>
+
+<p><b>2. Predict:</b> Propagate each particle through the dynamics model with added noise:</p>
+<span class="formula">xᵢₖ = f(xᵢₖ₋₁, uₖ₋₁) + wᵢ    for i = 1..N
+(each particle evolves independently)</span>
+
+<p><b>3. Update (weight):</b> Score each particle by how well it explains the current measurement:</p>
+<span class="formula">wᵢ = P(zₖ | xᵢₖ)    (likelihood of measurement given particle's state)
+Normalize: wᵢ = wᵢ / Σwⱼ</span>
+
+<p><b>4. Resample:</b> Draw N new particles from the current set, with probability proportional to their weights. High-weight particles get duplicated, low-weight ones get eliminated. This focuses computational resources on high-probability regions.</p>
+
+<p><b>5. Repeat</b> steps 2-4 for each timestep.</p>
+
+<p><b>Resampling strategies:</b> Systematic resampling is preferred over multinomial — it's O(N) and has lower variance. But resampling causes <b>particle depletion</b> (loss of diversity), so only resample when the effective sample size drops below a threshold: <code>N_eff = 1 / Σwᵢ² < N/2</code>.</p>
+
+<p><b>The curse of dimensionality:</b> Particles needed scales exponentially with state dimension. Works great for 3-DOF (x, y, θ) localization. Impractical for 30-DOF robot state estimation — that's where EKF/UKF shine.</p>
+
+<span class="key-point">Key insight: The particle filter's superpower is representing multimodal distributions. During global localization, particles cluster around multiple candidate locations. As more measurements arrive, particles converge to the true location. No parametric filter can do this.</span>
+
+<span class="interview-tip">🎯 Interview tip: Mention the connection to AMCL in ROS: "In Nav2, the AMCL node is a particle filter for 2D localization — it maintains thousands of pose hypotheses and updates them with LiDAR scans against a known map. I used this at SpaceData for the indoor navigation system."</span>`
+  },
+  {
+    q: "What is the difference between localization, mapping, and SLAM? When do you need each?",
+    diff: "core",
+    a: `<p><b>Localization:</b> Estimate the robot's pose within a <b>known</b> map. The map is pre-built and static. Input: sensor data + existing map. Output: robot pose (x, y, θ) in the map frame. Example: AMCL in ROS Nav2 with a pre-built LiDAR occupancy grid.</p>
+
+<p><b>Mapping:</b> Build a map of the environment given <b>known</b> robot poses. The trajectory is given (e.g., from GPS or motion capture). Input: sensor data + robot trajectory. Output: map (occupancy grid, point cloud, etc.). Example: building an occupancy grid from LiDAR while driving a robot with GPS in an open area.</p>
+
+<p><b>SLAM:</b> Do both simultaneously when <b>neither</b> the map nor the pose is known. Input: sensor data + odometry (noisy). Output: robot trajectory + map, jointly estimated. Example: exploring an unknown building with only LiDAR and wheel odometry.</p>
+
+<p><b>When to use each:</b></p>
+<p><b>Localization only:</b> Factory floors, warehouses — environments that don't change. Build the map once (with SLAM or manual survey), then localize against it. This is what I did at SpaceData for indoor navigation: build the map with Cartographer, then run AMCL for localization.</p>
+
+<p><b>SLAM:</b> Unknown or changing environments. First deployment in a new building, disaster response (SpaceData's use case), outdoor exploration. Also needed when the environment changes enough that the old map is no longer valid.</p>
+
+<p><b>Mapping only:</b> Rare in practice because you usually don't have perfect poses. Useful for post-processing: run SLAM to get the trajectory, then re-project sensor data onto the optimized trajectory for a cleaner map.</p>
+
+<span class="key-point">Key insight: In a production system, SLAM runs once to build the map, then the robot switches to localization-only mode for daily operation. This is faster and more robust because the map is a strong prior. SLAM is the bootstrap; localization is the steady state.</span>
+
+<span class="interview-tip">🎯 Interview tip: Reference your actual pipeline: "At SpaceData, I used Cartographer for initial SLAM to build the facility map, then deployed AMCL for real-time localization during missions. SLAM was the setup phase; localization was the operational phase."</span>`
+  },
+  {
+    q: "Explain the IMU measurement model. What does an accelerometer and gyroscope actually measure?",
+    diff: "core",
+    a: `<p>This is fundamental and often misunderstood. An IMU has two sensors, and neither measures what people intuitively think.</p>
+
+<p><b>Gyroscope</b> measures <b>angular velocity</b> of the sensor frame relative to an inertial frame, expressed in the sensor frame:</p>
+<span class="formula">ω_meas = ω_true + b_gyro + n_gyro
+where b_gyro is slowly varying bias, n_gyro is white noise</span>
+<p>Integrating ω gives orientation change (relative, not absolute). Gyro bias causes heading drift over time.</p>
+
+<p><b>Accelerometer</b> measures <b>specific force</b> — the non-gravitational acceleration of the sensor. Critically, it measures <code>a_true - g</code>, not <code>a_true</code>:</p>
+<span class="formula">a_meas = R_world_to_body · (a_true - g) + b_accel + n_accel
+       = a_proper + b_accel + n_accel</span>
+
+<p><b>Key consequence:</b> When the IMU is stationary, it reads <code>-g</code> in the body frame (pointing up with magnitude 9.81 m/s²). When in free fall, it reads <b>zero</b> — even though the sensor is accelerating at g toward the ground. This is counterintuitive but correct: the accelerometer measures force per unit mass, not coordinate acceleration.</p>
+
+<p><b>To get world-frame acceleration:</b></p>
+<span class="formula">a_world = R_body_to_world · a_meas + g - R_body_to_world · b_accel
+(need orientation R to rotate out of body frame, then add gravity back)</span>
+
+<p>This means: to integrate acceleration for velocity/position, you first need accurate orientation. Orientation errors directly corrupt the acceleration estimate — a 1° tilt error mixes a component of gravity into the horizontal acceleration. For 9.81 m/s², a 1° error gives ~0.17 m/s² of false horizontal acceleration.</p>
+
+<span class="key-point">Key insight: The accelerometer's measurement of gravity is both a curse and a blessing. It corrupts acceleration integration (you must subtract gravity using the orientation estimate), but it also provides an absolute tilt reference (you can measure pitch and roll from the gravity vector when stationary or slow-moving).</span>
+
+<span class="interview-tip">🎯 Interview tip: If asked "what does an accelerometer measure?", say "specific force — not acceleration. It reads g pointing up when stationary and zero in free fall. To get actual acceleration, I need to rotate into the world frame using the gyro-derived orientation and add back the gravity vector."</span>`
+  },
+  {
+    q: "How do you handle the rotation representation in a state estimator? Euler angles vs quaternions.",
+    diff: "advanced",
+    a: `<p>Representing 3D orientation in a state estimator is tricky because rotations live on a manifold (SO(3)), not in Euclidean space. The choice of parameterization affects filter correctness and performance.</p>
+
+<p><b>Euler angles (roll, pitch, yaw):</b></p>
+<p>Intuitive, minimal (3 parameters for 3 DOF). But they have <b>gimbal lock</b> — when pitch = ±90°, roll and yaw become degenerate (the same rotation can be represented by infinitely many Euler angle combinations). This creates singularities in the Jacobians and can crash the EKF.</p>
+
+<p><b>Quaternions (q = [w, x, y, z]):</b></p>
+<p>4 parameters for 3 DOF (one redundant), but no singularities. Smooth interpolation (SLERP). Composition is quaternion multiplication. The constraint is <code>||q|| = 1</code> — the quaternion must stay on the unit sphere.</p>
+
+<p><b>The EKF challenge with quaternions:</b> The state has 4 quaternion components but only 3 DOF. Options:</p>
+<p>1. <b>Multiplicative EKF (MEKF):</b> The standard approach. The error state uses a 3-component rotation error (axis-angle or rotation vector), and the full quaternion is maintained separately. The EKF operates on the 3-component error, which is then applied to the quaternion via quaternion multiplication. This avoids the constraint issue and keeps the covariance at the correct dimension.</p>
+
+<span class="formula">MEKF:
+  Full state: q (quaternion, 4 components, on manifold)
+  Error state: δθ (3 components, in tangent space)
+  Update: q_updated = q_predicted ⊗ exp(δθ/2)
+  Covariance: 3×3 for orientation (not 4×4)</span>
+
+<p>2. <b>Additive with renormalization:</b> Just use 4-component quaternion in the state, do normal EKF update, then renormalize to unit length. Simple but slightly less rigorous — the covariance doesn't properly respect the manifold constraint.</p>
+
+<span class="key-point">Key insight: The multiplicative EKF is the industry standard for aerospace and robotics orientation estimation. It properly separates the global attitude (quaternion) from the local error (rotation vector in the tangent space), which keeps the math correct on SO(3).</span>
+
+<span class="interview-tip">🎯 Interview tip: Say "I use the multiplicative EKF formulation — the error state lives in the tangent space of SO(3) as a 3-vector, and the global quaternion is updated multiplicatively. This avoids gimbal lock and keeps the covariance dimensionally correct." This is the answer that signals real estimation experience.</span>`
+  },
+  {
+    q: "What is the difference between loosely coupled and tightly coupled sensor fusion?",
+    diff: "advanced",
+    a: `<p><b>Loosely coupled:</b> Each sensor runs its own processing pipeline and produces a high-level output (a pose estimate, a velocity, etc.). These outputs are then fused in a separate filter. The sensors are independent — they don't share information during processing.</p>
+
+<span class="formula">Loosely coupled:
+  LiDAR → scan matching → pose_lidar ──┐
+  IMU → integration → pose_imu ────────┤→ EKF → fused pose
+  Odometry → integration → vel_odom ───┘</span>
+
+<p><b>Tightly coupled:</b> Raw sensor data goes directly into a single joint estimator. The filter's measurement model operates on the raw data (individual LiDAR points, pixel coordinates, raw IMU readings) and estimates all states jointly.</p>
+
+<span class="formula">Tightly coupled:
+  Raw LiDAR points ──────┐
+  Raw IMU readings ──────┤→ Single EKF/optimizer → fused pose + map
+  Raw encoder ticks ─────┘</span>
+
+<p><b>Tradeoffs:</b></p>
+<p><b>Loosely coupled advantages:</b> Simpler to implement and debug. Each sensor module is independent and can be tested separately. If one sensor fails, the others continue. Modular — easy to add or remove sensors.</p>
+
+<p><b>Tightly coupled advantages:</b> More accurate because no information is lost. The filter can exploit correlations between sensors. Better handling of degenerate cases (e.g., LiDAR in a featureless corridor benefits from IMU constraints on the scan matching). Can handle scenarios where individual sensors don't have enough information to produce a pose estimate alone.</p>
+
+<p><b>Examples:</b></p>
+<p><b>Loosely coupled:</b> robot_localization package in ROS fuses odometry and IMU pose estimates.</p>
+<p><b>Tightly coupled:</b> VINS-Mono fuses raw IMU measurements with visual feature tracks in a single optimization.</p>
+
+<span class="key-point">Key insight: Tightly coupled fusion is almost always more accurate, but loosely coupled is more robust and easier to maintain. Production systems often start loosely coupled for reliability and upgrade to tightly coupled when accuracy demands it.</span>
+
+<span class="interview-tip">🎯 Interview tip: Frame it as an engineering decision: "I'd start loosely coupled for faster development and modularity, then tighten the coupling for specific sensor pairs where accuracy matters — like IMU-camera in visual-inertial odometry." This shows pragmatism.</span>`
+  },
+  {
+    q: "You're deploying a robot in a GPS-denied disaster site. Design the full localization stack.",
+    diff: "advanced",
+    a: `<p>This is exactly what I worked on at <b>SpaceData</b> for indoor disaster response. Here's the full stack I'd design:</p>
+
+<p><b>Sensors:</b> 3D LiDAR (Velodyne/Ouster), IMU (6-axis minimum, 9-axis preferred), wheel/leg encoders, and optionally a wide-angle camera for visual features.</p>
+
+<p><b>Layer 1 — High-rate state estimation (1 kHz):</b></p>
+<p>IMU-centric EKF. The IMU drives the predict step at 1 kHz. Encoder odometry provides velocity updates at 200 Hz. This gives the controller a smooth, low-latency pose estimate. State: [position, velocity, orientation, IMU biases].</p>
+
+<p><b>Layer 2 — LiDAR odometry (10-20 Hz):</b></p>
+<p>Point cloud registration (ICP or NDT) between consecutive LiDAR scans gives relative motion. This is the primary drift-correction source — much more accurate than wheel odometry in rubble/uneven terrain. Feed this as a relative pose measurement into the Layer 1 EKF.</p>
+
+<p><b>Layer 3 — SLAM back-end (1-5 Hz):</b></p>
+<p>Pose graph optimization running asynchronously. Nodes are LiDAR keyframes, edges are odometry constraints and loop closures. Loop closure detection via scan context or geometric descriptor matching. When a loop closure is detected, the optimizer corrects the entire trajectory — this correction is fed back to Layer 1.</p>
+
+<p><b>Layer 4 — Map management:</b></p>
+<p>Build and maintain an occupancy grid and/or elevation map for the planner. At SpaceData, I used elevation grid mapping for outdoor navigation — the elevation map captured terrain features that a 2D occupancy grid would miss.</p>
+
+<p><b>Failure handling:</b></p>
+<p>LiDAR degeneracy detection — in long featureless corridors, LiDAR odometry becomes unconstrained along the corridor direction. Detect this via eigenvalue analysis of the scan matching Hessian, and increase reliance on IMU/encoders for that axis.</p>
+
+<span class="key-point">Key insight: The layered architecture provides both real-time performance (1 kHz from the EKF) and global consistency (from the SLAM optimizer). Each layer runs at a rate matching its computational cost, and information flows from slow/accurate layers down to fast/approximate layers.</span>
+
+<span class="interview-tip">🎯 Interview tip: Draw the layered architecture with rates labeled. Mention specific technology choices (Cartographer, LIO-SAM, or FAST-LIO for the LiDAR odometry). Reference your SpaceData experience: "I deployed exactly this architecture for GPS-denied indoor navigation using Nav2 with MPPI as the local planner."</span>`
+  }
+];
+
+// ── LOCALSTORAGE HELPERS ──
+function getCompleted() { try { return JSON.parse(localStorage.getItem('roboprep_completed') || '{}'); } catch { return {}; } }
+function setCompleted(c) { localStorage.setItem('roboprep_completed', JSON.stringify(c)); }
+function getXP() { return parseInt(localStorage.getItem('roboprep_xp') || '0', 10); }
+function setXP(v) { localStorage.setItem('roboprep_xp', String(v)); }
+function getStreak() { try { return JSON.parse(localStorage.getItem('roboprep_streak') || '{"count":0,"lastDate":""}'); } catch { return {count:0,lastDate:''}; } }
+function updateStreak() {
+  const s = getStreak();
+  const today = new Date().toISOString().slice(0,10);
+  if (s.lastDate === today) return;
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+  s.count = (s.lastDate === yesterday) ? s.count + 1 : 1;
+  s.lastDate = today;
+  localStorage.setItem('roboprep_streak', JSON.stringify(s));
+}
+
+let currentFilter = 'all';
+let searchTerm = '';
+
+function refreshNav() {
+  updateStreak();
+  document.getElementById('nav-xp').textContent = getXP();
+  document.getElementById('nav-streak').textContent = getStreak().count;
+  const c = getCompleted();
+  let total = 0;
+  for (const k in c) { if (k.startsWith(SECTION_KEY + '-') && c[k]) total++; }
+  document.getElementById('nav-done').textContent = total;
+}
+
+function refreshProgress() {
+  const c = getCompleted();
+  let done = 0;
+  for (let i = 0; i < QUESTIONS.length; i++) { if (c[SECTION_KEY + '-' + i]) done++; }
+  document.getElementById('prog-text').textContent = done + ' / ' + QUESTIONS.length;
+  document.getElementById('prog-bar').style.width = (done / QUESTIONS.length * 100) + '%';
+}
+
+function renderCards() {
+  const list = document.getElementById('qa-list');
+  list.innerHTML = '';
+  const c = getCompleted();
+  QUESTIONS.forEach((item, idx) => {
+    if (currentFilter !== 'all' && item.diff !== currentFilter) return;
+    if (searchTerm && !item.q.toLowerCase().includes(searchTerm.toLowerCase())) return;
+    const key = SECTION_KEY + '-' + idx;
+    const done = !!c[key];
+    const card = document.createElement('div');
+    card.className = 'qa-card' + (done ? ' completed' : '');
+    card.style.animationDelay = (idx * 0.03) + 's';
+    card.innerHTML = `
+      <div class="qa-question" data-idx="${idx}">
+        <span class="qa-num">${String(idx + 1).padStart(2, '0')}</span>
+        <span class="qa-text">${item.q}</span>
+        <div class="qa-badges">
+          <span class="diff-badge ${item.diff}">${item.diff}</span>
+          <span class="qa-chevron">▾</span>
+        </div>
+      </div>
+      <div class="qa-answer">
+        <div class="qa-answer-inner">
+          ${item.a}
+          <button class="review-btn ${done ? 'done' : ''}" data-idx="${idx}">
+            ${done ? '✓ Reviewed' : '☐ Mark as Reviewed'}
+          </button>
+        </div>
+      </div>`;
+    list.appendChild(card);
+  });
+  list.querySelectorAll('.qa-question').forEach(el => {
+    el.addEventListener('click', () => {
+      const card = el.parentElement;
+      const wasOpen = card.classList.contains('open');
+      list.querySelectorAll('.qa-card.open').forEach(c => c.classList.remove('open'));
+      if (!wasOpen) card.classList.add('open');
+    });
+  });
+  list.querySelectorAll('.review-btn').forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const idx = el.dataset.idx;
+      const key = SECTION_KEY + '-' + idx;
+      const c = getCompleted();
+      if (c[key]) { delete c[key]; setXP(Math.max(0, getXP() - 10)); }
+      else { c[key] = true; setXP(getXP() + 10); }
+      setCompleted(c);
+      refreshNav(); refreshProgress(); renderCards();
+    });
+  });
+}
+
+document.querySelectorAll('.filter-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+    chip.classList.add('active');
+    currentFilter = chip.dataset.diff;
+    renderCards();
+  });
+});
+document.getElementById('search-input').addEventListener('input', (e) => { searchTerm = e.target.value; renderCards(); });
+
+refreshNav(); refreshProgress(); renderCards();
+</script>
+</body>
+</html>

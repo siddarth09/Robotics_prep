@@ -1,0 +1,860 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ROBOPREP — Reinforcement Learning</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+:root {
+  --bg-deep: #060a12; --bg-main: #0a0e17; --bg-card: #111827; --bg-card-hover: #162032; --bg-card-open: #0f1b2d;
+  --border: #1e2a3a; --border-glow: #263248; --text-primary: #e8ecf1; --text-secondary: #8892a4; --text-muted: #4a5568;
+  --cyan: #00e5ff; --cyan-dim: rgba(0,229,255,0.12); --orange: #ff6b35; --orange-dim: rgba(255,107,53,0.12);
+  --green: #00e676; --green-dim: rgba(0,230,118,0.12); --purple: #b388ff; --purple-dim: rgba(179,136,255,0.12);
+  --yellow: #ffd740; --yellow-dim: rgba(255,215,64,0.12);
+  --section-accent: var(--orange); --section-dim: var(--orange-dim);
+  --font-mono: 'JetBrains Mono', monospace; --font-sans: 'DM Sans', sans-serif;
+}
+html { scroll-behavior: smooth; }
+body { background: var(--bg-deep); color: var(--text-primary); font-family: var(--font-sans); min-height: 100vh; overflow-x: hidden; }
+body::before { content: ''; position: fixed; inset: 0; background-image: linear-gradient(rgba(255,107,53,0.03) 1px, transparent 1px), linear-gradient(90deg, rgba(255,107,53,0.03) 1px, transparent 1px); background-size: 60px 60px; pointer-events: none; z-index: 0; }
+
+.navbar { position: fixed; top: 0; left: 0; right: 0; height: 64px; background: rgba(6,10,18,0.88); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; z-index: 100; }
+.logo { font-family: var(--font-mono); font-weight: 800; font-size: 1.3rem; letter-spacing: 3px; color: var(--cyan); text-shadow: 0 0 20px rgba(0,229,255,0.4); text-decoration: none; }
+.logo span { color: var(--text-muted); font-weight: 400; }
+.nav-stats { display: flex; gap: 20px; align-items: center; font-family: var(--font-mono); font-size: 0.78rem; }
+.nav-stat { display: flex; align-items: center; gap: 6px; color: var(--text-secondary); }
+.nav-stat .val { color: var(--text-primary); font-weight: 600; }
+.nav-stat .icon { font-size: 1rem; }
+
+.section-header { position: relative; z-index: 1; margin-top: 64px; padding: 48px 24px 20px; max-width: 900px; margin-left: auto; margin-right: auto; }
+.back-link { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 0.78rem; color: var(--text-muted); text-decoration: none; margin-bottom: 20px; transition: color 0.2s; }
+.back-link:hover { color: var(--text-secondary); }
+.section-tag { font-family: var(--font-mono); font-size: 0.68rem; font-weight: 600; letter-spacing: 2.5px; text-transform: uppercase; color: var(--section-accent); margin-bottom: 8px; }
+.section-title { font-family: var(--font-mono); font-size: clamp(1.5rem, 4vw, 2rem); font-weight: 800; margin-bottom: 8px; }
+.section-desc { font-size: 0.95rem; color: var(--text-secondary); line-height: 1.6; margin-bottom: 24px; }
+
+.progress-wrap { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
+.progress-text { font-family: var(--font-mono); font-size: 0.75rem; color: var(--text-muted); min-width: 70px; }
+.progress-bar-bg { flex: 1; height: 6px; background: var(--bg-card); border-radius: 100px; overflow: hidden; border: 1px solid var(--border); }
+.progress-bar-fill { height: 100%; background: var(--section-accent); border-radius: 100px; transition: width 0.5s ease; box-shadow: 0 0 10px rgba(255,107,53,0.3); }
+
+.filters { position: relative; z-index: 1; max-width: 900px; margin: 0 auto 24px; padding: 0 24px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.filter-chip { font-family: var(--font-mono); font-size: 0.72rem; font-weight: 600; letter-spacing: 1px; padding: 7px 16px; border-radius: 100px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.2s; }
+.filter-chip:hover { border-color: var(--text-muted); color: var(--text-secondary); }
+.filter-chip.active { background: var(--section-dim); border-color: var(--section-accent); color: var(--section-accent); }
+.search-input { flex: 1; min-width: 160px; font-family: var(--font-mono); font-size: 0.78rem; padding: 8px 14px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg-card); color: var(--text-primary); outline: none; transition: border-color 0.2s; }
+.search-input::placeholder { color: var(--text-muted); }
+.search-input:focus { border-color: var(--section-accent); }
+
+.qa-list { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 0 24px 80px; display: flex; flex-direction: column; gap: 12px; }
+.qa-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; transition: border-color 0.3s; }
+.qa-card:hover { border-color: var(--border-glow); }
+.qa-card.completed { border-left: 3px solid var(--green); }
+.qa-card.open { background: var(--bg-card-open); border-color: var(--border-glow); }
+.qa-question { display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px; cursor: pointer; user-select: none; }
+.qa-num { font-family: var(--font-mono); font-size: 0.7rem; font-weight: 700; color: var(--section-accent); min-width: 28px; padding-top: 2px; }
+.qa-text { flex: 1; font-size: 0.95rem; font-weight: 600; line-height: 1.5; }
+.qa-badges { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.diff-badge { font-family: var(--font-mono); font-size: 0.6rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; padding: 3px 10px; border-radius: 100px; }
+.diff-badge.core { background: var(--green-dim); color: var(--green); }
+.diff-badge.intermediate { background: var(--orange-dim); color: var(--orange); }
+.diff-badge.advanced { background: var(--purple-dim); color: var(--purple); }
+.qa-chevron { font-size: 1rem; color: var(--text-muted); transition: transform 0.3s; flex-shrink: 0; padding-top: 2px; }
+.qa-card.open .qa-chevron { transform: rotate(180deg); }
+
+.qa-answer { max-height: 0; overflow: hidden; transition: max-height 0.4s ease; }
+.qa-card.open .qa-answer { max-height: 8000px; }
+.qa-answer-inner { padding: 0 20px 20px 60px; font-size: 0.9rem; line-height: 1.75; color: var(--text-secondary); }
+.qa-answer-inner b { color: var(--text-primary); }
+.qa-answer-inner code { font-family: var(--font-mono); font-size: 0.8rem; background: rgba(255,107,53,0.08); color: var(--orange); padding: 2px 7px; border-radius: 4px; }
+.formula { display: block; font-family: var(--font-mono); font-size: 0.82rem; background: rgba(179,136,255,0.08); color: var(--purple); border-left: 3px solid var(--purple); padding: 12px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; overflow-x: auto; white-space: pre-wrap; }
+.key-point { display: block; background: var(--green-dim); border-left: 3px solid var(--green); padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; color: var(--text-primary); font-size: 0.85rem; }
+.interview-tip { display: block; background: var(--orange-dim); border-left: 3px solid var(--orange); padding: 10px 16px; border-radius: 0 8px 8px 0; margin: 12px 0; color: var(--text-primary); font-size: 0.85rem; }
+.qa-answer-inner p { margin-bottom: 10px; }
+.review-btn { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 0.75rem; font-weight: 600; letter-spacing: 1px; padding: 8px 18px; border-radius: 8px; border: 1px solid var(--border); background: transparent; color: var(--text-muted); cursor: pointer; margin-top: 16px; transition: all 0.2s; }
+.review-btn:hover { border-color: var(--green); color: var(--green); }
+.review-btn.done { background: var(--green-dim); border-color: var(--green); color: var(--green); }
+
+@media (max-width: 640px) {
+  .navbar { padding: 0 16px; } .nav-stats { gap: 10px; } .nav-stat span:not(.icon):not(.val) { display: none; }
+  .section-header { padding: 40px 16px 16px; } .filters { padding: 0 16px; }
+  .qa-list { padding: 0 16px 60px; } .qa-answer-inner { padding: 0 16px 16px 40px; } .qa-question { padding: 14px 16px; }
+}
+@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: translateY(0); } }
+.qa-card { animation: fadeUp 0.35s ease both; }
+</style>
+</head>
+<body>
+
+<nav class="navbar">
+  <a href="index.html" class="logo">ROBOPREP<span>.io</span></a>
+  <div class="nav-stats">
+    <div class="nav-stat"><span class="icon">⚡</span><span>XP</span><span class="val" id="nav-xp">0</span></div>
+    <div class="nav-stat"><span class="icon">🔥</span><span>Streak</span><span class="val" id="nav-streak">0</span></div>
+    <div class="nav-stat"><span class="icon">✓</span><span class="val" id="nav-done">0</span><span>done</span></div>
+  </div>
+</nav>
+
+<div class="section-header">
+  <a href="index.html" class="back-link">← Back to Dashboard</a>
+  <div class="section-tag">SECTION 03</div>
+  <h1 class="section-title">Reinforcement Learning</h1>
+  <p class="section-desc">PPO, GAE, sim-to-real, reward engineering, domain randomization, policy architectures, and the hard real-world problems that break textbook RL — with questions that combine concepts and demand systems-level thinking.</p>
+  <div class="progress-wrap">
+    <span class="progress-text" id="prog-text">0 / 20</span>
+    <div class="progress-bar-bg"><div class="progress-bar-fill" id="prog-bar" style="width:0%"></div></div>
+  </div>
+</div>
+
+<div class="filters">
+  <button class="filter-chip active" data-diff="all">All</button>
+  <button class="filter-chip" data-diff="core">Core</button>
+  <button class="filter-chip" data-diff="intermediate">Intermediate</button>
+  <button class="filter-chip" data-diff="advanced">Advanced</button>
+  <input type="text" class="search-input" placeholder="Search questions..." id="search-input">
+</div>
+
+<div class="qa-list" id="qa-list"></div>
+
+<script>
+const SECTION_KEY = 'rl';
+
+const QUESTIONS = [
+  {
+    q: "Your PPO policy trains well in simulation but collapses within 5 seconds on the real quadruped. Walk me through your systematic debugging process.",
+    diff: "advanced",
+    a: `<p>This is the sim-to-real gap manifesting at deployment. I'd debug it in layers, from cheapest to most expensive investigations:</p>
+
+<p><b>Step 1 — Observation pipeline audit (30 min):</b> The #1 cause of sim-to-real failure is observation mismatch. Check every observation channel: are the real joint encoders in the same units (radians vs degrees)? Is the IMU frame convention identical to simulation? Are observations normalized using the same running statistics from training? At <b>SpaceData</b>, I found that Isaac Sim's default joint ordering didn't match the URDF convention on the physical robot — swapping two hip joints made the policy immediately incoherent.</p>
+
+<p><b>Step 2 — Action pipeline audit (30 min):</b> Check action scaling. If the policy outputs normalized actions [-1, 1] but the real robot expects radians, or if there's a missing clamp, actions saturate or wrap. Verify the action delay — simulation might apply actions instantly, but the real robot has 5-20ms of communication latency. Log the first 100 actions and compare against what you'd see in sim for the same initial state.</p>
+
+<p><b>Step 3 — Dynamics mismatch (hours):</b> Record real robot trajectories (joint angles, velocities, torques) and replay the same actions in simulation. Compare the resulting states. Large divergence reveals which physical parameters are wrong: friction, damping, motor models, mass distribution. This is <b>system identification</b> — measure the real dynamics and update the sim.</p>
+
+<p><b>Step 4 — Domain randomization coverage (hours):</b> Check if the real parameters fall within your DR ranges. If real floor friction is 0.3 but you randomized over [0.5, 1.0], the policy has never seen the real conditions. Expand DR ranges to cover measured real-world values.</p>
+
+<p><b>Step 5 — Observation latency and filtering:</b> Real sensors have latency and filtering that sim doesn't model. IMU at 1kHz with a low-pass filter introduces phase lag. Joint velocities might be numerically differentiated (noisy) rather than directly measured. Add these to the sim pipeline.</p>
+
+<span class="key-point">Key insight: 90% of sim-to-real failures are software bugs in the observation/action pipeline, not fundamental dynamics mismatch. Always check the plumbing before blaming the physics. I learned this the hard way at SpaceData — what looked like a dynamics gap was a quaternion convention mismatch.</span>
+
+<span class="interview-tip">🎯 Interview tip: Structure your answer as a systematic pipeline: observation audit → action audit → dynamics comparison → DR review → latency modeling. Interviewers want to see that you don't just guess — you have a checklist. Mention specific bugs you've found.</span>`
+  },
+  {
+    q: "Derive the PPO clipped objective. Why does clipping work, and what happens when ε is too large or too small?",
+    diff: "core",
+    a: `<p><b>PPO's core problem:</b> Policy gradient methods update the policy using data collected under the old policy. If the update is too large, the new policy deviates far from the old one, the advantage estimates become inaccurate, and training collapses. TRPO solved this with a KL constraint but required conjugate gradient — expensive. PPO achieves similar stability with a simple clipped objective.</p>
+
+<p><b>The objective:</b></p>
+<span class="formula">rₜ(θ) = π_θ(aₜ|sₜ) / π_θ_old(aₜ|sₜ)    [probability ratio]
+
+L_CLIP(θ) = E[ min(rₜ·Âₜ, clip(rₜ, 1-ε, 1+ε)·Âₜ) ]</span>
+
+<p><b>How clipping works — two cases:</b></p>
+
+<p><b>Case 1: Âₜ > 0 (action was good).</b> We want to increase rₜ (make this action more likely). But the clip caps rₜ at 1+ε, so once the policy has moved ε away from the old policy in this direction, there's no further gradient incentive. It prevents over-exploitation of good actions.</p>
+
+<p><b>Case 2: Âₜ < 0 (action was bad).</b> We want to decrease rₜ. The clip caps rₜ at 1-ε, preventing the policy from moving too far away from the bad action. This is crucial — without it, the policy could catastrophically avoid entire regions of action space.</p>
+
+<p>The <code>min</code> ensures we always use the more pessimistic estimate, creating a lower bound on the true objective.</p>
+
+<p><b>ε tuning:</b></p>
+<p><b>ε too large (e.g., 0.5):</b> The clip is loose, updates are large, and you lose the stability benefit. Training becomes high-variance and can diverge — similar to vanilla policy gradient.</p>
+<p><b>ε too small (e.g., 0.05):</b> Updates are tiny, training is extremely slow, and the policy barely changes per iteration. You need many more iterations to converge, and you might get stuck in local optima because the policy can't explore.</p>
+<p><b>Sweet spot:</b> ε = 0.1–0.2 works for most robotics tasks. At SpaceData I used ε = 0.2 for quadruped locomotion — the default in most implementations — and it was stable out of the box.</p>
+
+<span class="key-point">Key insight: PPO's genius is replacing a hard constraint (TRPO's KL bound) with a soft clipping penalty that achieves similar behavior with just a few lines of code. The clipped objective is a pessimistic lower bound — it can't overestimate improvement, so each update is conservative.</span>
+
+<span class="interview-tip">🎯 Interview tip: Draw the clipped objective graph on a whiteboard — rₜ on x-axis, objective on y-axis, showing the flat regions beyond 1±ε. This visual instantly communicates why clipping prevents large updates. Then mention: "The key insight is that the min operation creates a pessimistic bound, ensuring monotonic improvement in expectation."</span>`
+  },
+  {
+    q: "You're training a quadruped to walk and the policy learns to vibrate in place instead of walking. What went wrong and how do you fix it?",
+    diff: "intermediate",
+    a: `<p>This is one of the most common reward hacking failures in locomotion RL. The policy found a local optimum that satisfies the reward function without actually walking.</p>
+
+<p><b>Diagnosis — which reward term is being exploited?</b></p>
+
+<p><b>Likely cause 1 — Alive bonus dominates:</b> If the reward has a large per-step alive bonus (+1 each step), the policy maximizes episode length by standing still or vibrating (which maintains balance). Forward velocity reward exists but is small relative to the alive bonus. Fix: reduce alive bonus or make it conditional on forward progress.</p>
+
+<p><b>Likely cause 2 — Velocity reward without energy penalty:</b> The velocity reward is <code>r = v_forward</code> but there's no penalty for energy/torque. Vibrating creates micro-forward-movements that accumulate tiny velocity rewards without the cost of real locomotion. Fix: add action penalty <code>-α·||a||²</code> or torque penalty <code>-β·||τ||²</code> to make vibrating expensive.</p>
+
+<p><b>Likely cause 3 — Symmetric gait not incentivized:</b> The policy found an asymmetric vibration that technically moves forward. Fix: add contact schedule rewards — bonus for alternating left-right contact patterns, penalty for simultaneous contacts or no contacts.</p>
+
+<p><b>My systematic fix from SpaceData:</b></p>
+<span class="formula">r = w₁·v_forward                    [forward velocity]
+  - w₂·|v_lateral|                   [penalize sideways motion]
+  - w₃·||ω||                         [penalize angular velocity]
+  - w₄·||a - a_prev||²              [action smoothness]
+  - w₅·||τ||²                        [energy efficiency]
+  + w₆·foot_contact_reward           [encourage gait pattern]
+  - w₇·||q - q_default||²           [penalize weird poses]</span>
+
+<p>The action smoothness term <code>||a - a_prev||²</code> is the key anti-vibration weapon — it makes rapid oscillation extremely expensive. At SpaceData, adding this single term with appropriate weighting eliminated the vibration behavior immediately.</p>
+
+<p><b>Deeper fix — curriculum:</b> Start with high action smoothness penalty and gradually reduce it. The policy first learns slow, smooth walking, then speeds up as the penalty relaxes. This avoids the vibration local optimum entirely.</p>
+
+<span class="key-point">Key insight: Reward hacking is the policy being smarter than your reward function. Every reward function has loopholes. The fix is never "train harder" — it's "close the loophole." Think adversarially: "If I were the policy, how would I cheat?"</span>
+
+<span class="interview-tip">🎯 Interview tip: Tell this as a real story: "At SpaceData, I saw this exact behavior. The policy vibrated at 50Hz because the alive bonus was +2 per step and the velocity reward was only v_x. I added an action rate penalty and reduced the alive bonus to +0.1, and the policy immediately switched to proper walking. This was part of the reward refinement that led to the 70% improvement."</span>`
+  },
+  {
+    q: "Explain GAE (Generalized Advantage Estimation). How does λ control bias-variance, and how would you tune it for a locomotion task vs a manipulation task?",
+    diff: "intermediate",
+    a: `<p><b>GAE</b> computes advantage estimates by blending TD residuals across multiple timesteps, controlled by the λ parameter.</p>
+
+<p><b>The TD residual</b> (1-step advantage estimate) is:</p>
+<span class="formula">δₜ = rₜ + γ·V(sₜ₊₁) - V(sₜ)    [low variance, high bias if V is inaccurate]</span>
+
+<p><b>GAE</b> is an exponentially-weighted average of multi-step advantage estimates:</p>
+<span class="formula">Â_GAE(λ) = Σₗ₌₀^∞ (γλ)ˡ · δₜ₊ₗ
+
+Expanded:
+Â_GAE = δₜ + (γλ)·δₜ₊₁ + (γλ)²·δₜ₊₂ + ...</span>
+
+<p><b>λ controls the bias-variance tradeoff:</b></p>
+<p><b>λ = 0:</b> Â = δₜ (pure 1-step TD). Low variance but high bias — entirely depends on the value function being accurate. If V is wrong, your advantages are wrong.</p>
+<p><b>λ = 1:</b> Â = Monte Carlo return - V(sₜ). High variance (depends on entire trajectory) but low bias — uses actual returns regardless of V accuracy.</p>
+<p><b>λ ∈ (0, 1):</b> Smooth interpolation. Standard choice: λ = 0.95.</p>
+
+<p><b>Task-specific tuning:</b></p>
+
+<p><b>Locomotion (SpaceData quadruped):</b> I used λ = 0.95. Locomotion has long-horizon credit assignment — a good foot placement now leads to stability 0.5s later. High λ lets the advantage look further ahead, capturing these delayed consequences. The reward is also relatively dense (velocity reward every step), so variance is manageable.</p>
+
+<p><b>Manipulation (PPO pick-and-place):</b> I'd consider λ = 0.9 or even lower. Manipulation tasks often have sparse terminal rewards (grasp success) with dense intermediate rewards (reaching). If the value function learns the reaching component well, lower λ exploits that accuracy for lower variance on the dense part, while still propagating the sparse grasp reward through the higher-order terms.</p>
+
+<p><b>General rule:</b> If your value function is accurate (dense rewards, simple dynamics), lower λ exploits it. If your value function is poor (sparse rewards, complex dynamics, early training), higher λ falls back to Monte Carlo-like estimates.</p>
+
+<span class="key-point">Key insight: GAE with λ=0.95 and γ=0.99 is the default that works 90% of the time in robotics. But understanding why lets you diagnose training problems: if the policy oscillates wildly between updates, λ might be too high (high variance). If it's stuck in a local optimum, λ might be too low (biased toward a poor value function).</span>
+
+<span class="interview-tip">🎯 Interview tip: Connect GAE to practical training dynamics: "I monitor the explained variance of the value function. If it's low (< 0.5), the value function is unreliable and I increase λ toward 1 to rely more on actual returns. If it's high (> 0.9), I can decrease λ to reduce variance." This shows you actually tune these things.</span>`
+  },
+  {
+    q: "You improved PPO performance by 70% at SpaceData. Walk me through exactly what you changed and why each change mattered.",
+    diff: "advanced",
+    a: `<p>The 70% improvement came from three categories of changes: <b>reward engineering</b>, <b>hyperparameter optimization</b>, and <b>domain randomization</b>. None individually gave 70% — it was the compounding effect.</p>
+
+<p><b>1. Reward refinement (biggest impact, ~35% of the improvement):</b></p>
+<p>The initial reward was naive — just forward velocity plus an alive bonus. The policy learned to lunge forward and crash, collecting high instantaneous velocity. I restructured the reward:</p>
+<span class="formula">Original:  r = v_forward + 2.0·alive
+Refined:   r = clip(v_forward, 0, v_target)    [cap reward at target speed]
+         - 0.5·|v_lateral|                       [no sideways drift]
+         - 0.1·||a - a_prev||²                  [smooth actions]
+         - 0.01·||τ||²                           [energy efficiency]
+         + 0.5·feet_air_time_reward              [encourage swing phase]
+         - 5.0·termination_penalty               [harsh fall penalty]</span>
+<p>Capping the velocity reward eliminated the lunging behavior. The feet air time reward encouraged a proper gait cycle instead of shuffling. The action smoothness term killed the vibration local optimum.</p>
+
+<p><b>2. Hyperparameter optimization (~20% of the improvement):</b></p>
+<p>Key changes: increased the number of parallel environments from 256 to 4096 (Isaac Sim's GPU parallelism), which dramatically improved sample efficiency. Reduced the learning rate from 3e-4 to 1e-4 with linear decay. Increased the number of PPO epochs from 5 to 10 per batch — with 4096 envs, each batch had enough diversity to support more gradient steps without overfitting.</p>
+
+<p><b>3. Domain randomization (~15% of the improvement, measured on real-world transfer):</b></p>
+<p>Randomized: ground friction (0.3–1.2), body mass (±15%), motor strength (±10%), observation noise (Gaussian on joint positions and velocities), action latency (0–20ms uniform), push disturbances (random forces on torso every 5–10s). The push disturbances were critical — without them, the policy was fragile to any perturbation. With them, it learned recovery behaviors that transferred directly to the real quadruped.</p>
+
+<p><b>How I measured "70% improvement":</b> The metric was average forward distance traveled in 10 seconds across 100 evaluation episodes, compared to the initial baseline policy. Baseline averaged ~2.1m, final policy averaged ~3.6m — a 71% improvement in distance, with significantly smoother gait and zero falls in evaluation.</p>
+
+<span class="key-point">Key insight: The 70% wasn't a single breakthrough — it was systematic engineering. Reward shaping gave the biggest individual gain, but it only worked because the hyperparameters supported stable training and DR ensured the improvements transferred to reality. This is how RL engineering works in practice: iterative refinement across all three axes simultaneously.</span>
+
+<span class="interview-tip">🎯 Interview tip: Be quantitative. Say "reward refinement contributed ~35%, hyperparameter tuning ~20%, domain randomization ~15%" and explain how you measured each. Then say "the key insight is that these compound — better rewards let the DR policy train faster, and better hyperparameters let reward changes take effect sooner." Interviewers love this level of analysis.</span>`
+  },
+  {
+    q: "Your RL policy works on flat ground but fails on a 5° incline. You can't retrain from scratch. What do you do?",
+    diff: "advanced",
+    a: `<p>This is a domain adaptation problem under a constraint (no retraining from scratch). Several approaches, ranked by practicality:</p>
+
+<p><b>Approach 1 — Fine-tune with the incline in the environment (fastest):</b></p>
+<p>Load the flat-ground checkpoint and continue training with terrain randomization that includes inclines from -10° to +10°. Since the policy already walks, it just needs to adapt — not learn from scratch. Typically converges in 10-20% of the original training time. The key is to include flat ground in the terrain distribution so the policy doesn't forget it (catastrophic forgetting). I'd use a 50/50 mix of flat and inclined terrains.</p>
+
+<p><b>Approach 2 — Add terrain randomization retroactively:</b></p>
+<p>If fine-tuning causes forgetting, use a curriculum: start 90% flat / 10% inclined, gradually shift to 50/50. Also randomize the incline direction (uphill, downhill, sideways) so the policy generalizes rather than memorizing one slope.</p>
+
+<p><b>Approach 3 — Observation augmentation:</b></p>
+<p>The policy might fail because it can't perceive the incline. Add gravity-projected body pitch from the IMU to the observation space. This lets the policy know "I'm tilting" and adjust. If I'm adding observations, I need to retrain at least the first layer, but the rest of the network can be frozen — much cheaper than full retraining.</p>
+
+<p><b>Approach 4 — Residual policy:</b></p>
+<p>Train a small residual network Δa = π_residual(s) that adds corrections to the frozen base policy's actions: <code>a = π_base(s) + α·π_residual(s)</code>. The residual only needs to learn the delta for inclines. Much faster to train, and the base policy is untouched. Scale α from 0 to 1 during training.</p>
+
+<p><b>Approach 5 — MPC fallback (no retraining at all):</b></p>
+<p>If retraining is truly impossible, add a model-based correction layer. Use the proprioceptive state to detect the incline (body pitch from IMU), then add a feedforward torque correction to the RL actions: increase hip torque on the uphill leg, decrease on downhill. This is essentially a gravity compensation term that augments the policy output.</p>
+
+<span class="key-point">Key insight: In production robotics, you rarely retrain from scratch. The standard workflow is: pretrained policy → fine-tune with new conditions → deploy. Residual policies and observation augmentation are the cleanest approaches because they don't risk forgetting the original capability.</span>
+
+<span class="interview-tip">🎯 Interview tip: Start with the fastest fix (fine-tune), then show you know more sophisticated options. Say "In practice, I'd fine-tune with terrain randomization first — it's the 80/20 solution. If that causes regression on flat ground, I'd switch to a residual policy architecture that preserves the base behavior." This shows engineering pragmatism.</span>`
+  },
+  {
+    q: "Explain domain randomization in depth. What parameters do you randomize, what distributions do you use, and when does DR fail?",
+    diff: "intermediate",
+    a: `<p><b>Domain randomization (DR)</b> trains the policy across a distribution of simulation parameters so it learns a robust policy that transfers to the real world — which is just one sample from that distribution.</p>
+
+<p><b>What I randomized at SpaceData (quadruped locomotion):</b></p>
+
+<p><b>Physics parameters:</b></p>
+<span class="formula">Ground friction:        Uniform(0.3, 1.2)
+Body mass:              Uniform(0.85×, 1.15×)  [±15% of nominal]
+Link COM offset:        Uniform(-0.02, 0.02)m  [per link]
+Motor strength:         Uniform(0.85×, 1.15×)
+Joint damping:          Uniform(0.8×, 1.2×)
+Restitution:            Uniform(0.0, 0.5)</span>
+
+<p><b>Observation noise:</b></p>
+<span class="formula">Joint position noise:   N(0, 0.01) rad
+Joint velocity noise:   N(0, 0.5) rad/s
+Body orientation noise: N(0, 0.02) rad
+Action latency:         Uniform(0, 20)ms  [critical for sim-to-real]</span>
+
+<p><b>External disturbances:</b></p>
+<span class="formula">Random push forces:     Uniform(-30, 30)N on torso, every 5-10s
+Terrain height noise:   Perlin noise, amplitude 0.02m</span>
+
+<p><b>Distribution choices matter:</b></p>
+<p><b>Uniform</b> for parameters where you don't know the real value — you want coverage. <b>Gaussian</b> for sensor noise where you've characterized the sensor. <b>Log-uniform</b> for parameters that span orders of magnitude (like friction if you're going from ice to rubber).</p>
+
+<p><b>When DR fails:</b></p>
+<p>1. <b>Over-randomization:</b> If ranges are too wide, the task becomes impossible under extreme parameters and the policy learns an overly conservative behavior — "the only policy that works everywhere is to barely move." At SpaceData, I initially randomized mass ±30% and the policy crawled. Reducing to ±15% let it walk normally.</p>
+<p>2. <b>Under-randomization:</b> If the real world falls outside your ranges, DR doesn't help. You must measure real-world parameters and ensure coverage.</p>
+<p>3. <b>Unmodeled effects:</b> DR can't help with phenomena that don't exist in sim at all — cable snags, water puddles, deformable terrain. You need either a more detailed sim or real-world fine-tuning.</p>
+<p>4. <b>High-dimensional randomization:</b> Randomizing 50+ parameters creates a huge space. Most combinations are unrealistic (low friction AND low motor strength AND heavy mass = impossible). Correlated randomization (physically plausible combinations) helps.</p>
+
+<span class="key-point">Key insight: DR is not "just add noise." It's a principled robustification technique. The goal is to make the real world look like a typical sample from your training distribution. If the real world is an outlier, DR won't save you. Always characterize the real system and ensure your DR ranges cover it.</span>
+
+<span class="interview-tip">🎯 Interview tip: Give specific numbers — not just "I randomized friction." Say "friction Uniform(0.3, 1.2), mass ±15%, action latency 0-20ms uniform." Then explain one failure case: "I over-randomized mass at ±30% and the policy became conservative. Reducing to ±15% with the real value measured at 1.02× nominal fixed it." Concrete numbers prove you've actually done this.</span>`
+  },
+  {
+    q: "On-policy (PPO) vs off-policy (SAC/TD3): when would you choose each for a robotics task, and what are the real engineering tradeoffs?",
+    diff: "intermediate",
+    a: `<p>This isn't just a theory question — the choice fundamentally affects your training infrastructure, debugging workflow, and deployment timeline.</p>
+
+<p><b>PPO (on-policy):</b></p>
+<p><b>How it works:</b> Collect a batch of trajectories with the current policy, compute advantage estimates, update the policy, throw away the data, repeat. Each batch is used for a few gradient steps then discarded.</p>
+<p><b>Sample efficiency:</b> Bad. Needs 10-100x more environment samples than off-policy. But with GPU-parallelized sims (Isaac Sim, MJX), you can run 4096+ envs simultaneously, so wall-clock time is fine.</p>
+<p><b>Stability:</b> Excellent. The clipped objective makes training monotonically improving (in expectation). Rarely diverges once hyperparameters are set.</p>
+<p><b>Use when:</b> Fast simulation is available, the task has dense rewards, you need reliable convergence. <b>This is why PPO dominates sim-to-real robotics.</b></p>
+
+<p><b>SAC/TD3 (off-policy):</b></p>
+<p><b>How it works:</b> Store all experience in a replay buffer. Sample random batches to update the policy and Q-functions. Old data is reused many times.</p>
+<p><b>Sample efficiency:</b> Much better. Replay buffer means each real-world interaction is used for many gradient steps.</p>
+<p><b>Stability:</b> Worse. Q-function overestimation, replay buffer staleness, and the moving target problem all cause instability. Requires careful tuning of target network update rate, buffer size, and learning rates.</p>
+<p><b>Use when:</b> Real-world data is expensive (physical robot experiments), exploration is critical (sparse rewards where you need to remember rare successes), or the simulator is slow.</p>
+
+<p><b>Real engineering tradeoffs I've experienced:</b></p>
+<p>At <b>SpaceData</b>, I chose PPO because Isaac Sim gave me 4096 parallel quadrupeds. The sample inefficiency didn't matter — I could generate millions of steps in minutes. PPO's stability meant I could iterate on reward functions without worrying about training crashes.</p>
+<p>For the <b>Franka pick-and-place</b>, PPO was also the right choice in MuJoCo because the reward was shaped densely. If the reward had been purely sparse (only +1 on successful grasp), I might have considered SAC because its replay buffer would retain and learn from rare successes.</p>
+
+<span class="key-point">Key insight: In the GPU-simulation era, PPO's sample inefficiency is largely irrelevant for sim-to-real. The bottleneck is no longer samples — it's reward engineering and domain randomization. PPO's stability lets you iterate faster on what actually matters. Off-policy wins when you're learning from limited real-world data.</span>
+
+<span class="interview-tip">🎯 Interview tip: Don't just list pros/cons. Say: "For sim-to-real with GPU sims, PPO is the industry standard — Tesla, Agility Robotics, NVIDIA all use it. I'd only reach for SAC/TD3 if I were doing real-world RL with limited samples or needed to learn from demonstrations in a replay buffer."</span>`
+  },
+  {
+    q: "Design the observation space for a quadruped locomotion policy. What do you include, what do you exclude, and why?",
+    diff: "intermediate",
+    a: `<p>Observation design is arguably more important than reward design — the policy can only learn behaviors it can perceive. Here's what I used at SpaceData:</p>
+
+<p><b>Included observations (proprioceptive):</b></p>
+<span class="formula">Joint positions:        12 values (3 per leg × 4 legs), relative to default
+Joint velocities:       12 values
+Body angular velocity:  3 values (from gyroscope)
+Body orientation:       projected gravity vector (3 values)
+Previous action:        12 values (for action smoothness)
+Command velocity:       3 values (v_x, v_y, ω_z targets)</span>
+
+<p><b>Total: ~45 dimensions</b></p>
+
+<p><b>Why projected gravity instead of Euler angles or quaternion?</b></p>
+<p>Projected gravity is <code>R_body_to_world.T @ [0, 0, -9.81]</code> — it's the gravity vector expressed in the body frame. It's continuous, singularity-free (no gimbal lock), and directly tells the policy "which way is down." Euler angles have discontinuities at ±180° and gimbal lock. Quaternions have the double-cover problem (q and -q represent the same rotation).</p>
+
+<p><b>What I excluded and why:</b></p>
+<p><b>Absolute position:</b> The policy shouldn't know where it is in the world — locomotion is translation-invariant. Including it would cause overfitting to specific locations.</p>
+<p><b>Contact forces:</b> Tempting to include, but contact sensors are noisy on real robots and not always available. Training without them forces the policy to infer contact from proprioception, which transfers better.</p>
+<p><b>Terrain height map:</b> For flat-ground walking, this is unnecessary complexity. For rough terrain, I'd add it — but through a learned encoder, not raw heightmap values.</p>
+<p><b>Joint torques:</b> Redundant with joint positions, velocities, and actions. The policy can implicitly infer torques from the dynamics.</p>
+
+<p><b>Normalization:</b> Running mean/variance normalization on all observations. Critical — without it, observations on different scales (radians vs rad/s vs m/s²) confuse the network. I used the VecNormalize wrapper in Isaac Lab.</p>
+
+<p><b>Observation history:</b> Some approaches stack the last N observations (N=2-5) to give the policy temporal context. I used N=1 (current only) plus previous action, which worked well. Stacking helps for tasks where the dynamics are partially observable (e.g., estimating foot contact from position history).</p>
+
+<span class="key-point">Key insight: Less is more. Every observation dimension the policy doesn't need is a dimension it can overfit to. The minimal proprioceptive set (joints + body angular velocity + projected gravity + commands + previous action) is enough for flat-ground locomotion. Add observations only when the policy demonstrably needs them.</span>
+
+<span class="interview-tip">🎯 Interview tip: Explain the design choices, not just the list. "I use projected gravity instead of Euler angles because it's continuous and singularity-free. I exclude absolute position because locomotion is translation-invariant. I include previous action to enable the smoothness penalty to work." Each choice should have a reason.</span>`
+  },
+  {
+    q: "What is the action space design problem in robot RL? Compare joint torques, joint positions, and Cartesian action spaces.",
+    diff: "intermediate",
+    a: `<p>The action space is what the policy directly outputs. It profoundly affects learning speed, behavior quality, and sim-to-real transfer.</p>
+
+<p><b>Joint torques (raw actuation):</b></p>
+<p>Policy outputs torques directly applied to each joint. Maximum flexibility — the policy has full control over the dynamics. But extremely hard to learn: the policy must discover gravity compensation, stable PD behavior, and task completion simultaneously. Training is 5-10x slower. Sim-to-real is fragile because torque control is sensitive to dynamics mismatch.</p>
+
+<p><b>Joint position targets (most common in locomotion):</b></p>
+<p>Policy outputs target joint angles. A low-level PD controller converts these to torques: <code>τ = Kp·(q_target - q) + Kd·(0 - q̇)</code>. The PD controller handles the fast dynamics (gravity, inertia), and the policy only needs to learn what positions to command. Much easier to learn. Sim-to-real is better because PD control is robust to moderate dynamics mismatch.</p>
+<p>This is what I used at <b>SpaceData</b>: the RL policy output joint position targets at 50 Hz, and a 1 kHz PD controller tracked them on the robot.</p>
+
+<p><b>Cartesian action space (end-effector increments):</b></p>
+<p>Policy outputs task-space displacements: Δx, Δy, Δz for the end-effector. An IK solver converts to joint commands. Natural for manipulation — "move the gripper 1cm left" is intuitive. But IK introduces singularities, and the policy can't exploit redundancy directly.</p>
+<p>I used this in the <b>PPO pick-and-place</b> project: the Franka Panda policy output Cartesian end-effector increments. This made the reward function natural (distance to object in Cartesian space) and reduced the effective action dimension from 7 (joints) to 3+1 (xyz + gripper).</p>
+
+<p><b>Hybrid approaches:</b></p>
+<p><b>Residual actions:</b> Policy outputs corrections to a baseline controller: <code>a = a_baseline + π(s)</code>. The baseline handles the nominal behavior, the policy handles adaptation. Great for fine-tuning classical controllers with RL.</p>
+
+<span class="key-point">Key insight: The action space defines the abstraction boundary between learning and control. Joint position targets with PD controllers is the sweet spot for most locomotion — it pushes fast dynamics handling to the PD layer (which is easy to tune) and lets the RL policy focus on high-level behavior (which is hard to hand-design).</span>
+
+<span class="interview-tip">🎯 Interview tip: Connect to your projects: "For locomotion at SpaceData, I used joint position targets because PD control handles the fast dynamics and is robust to sim-to-real gaps. For manipulation, I used Cartesian increments because the task is naturally defined in workspace coordinates." Show you make deliberate, task-dependent choices.</span>`
+  },
+  {
+    q: "You're training PPO and the reward curve plateaus at 60% of expected performance. The value loss is low, the policy entropy is near zero, and the KL divergence per update is tiny. Diagnose the problem.",
+    diff: "advanced",
+    a: `<p>This is a textbook case of <b>premature convergence / entropy collapse</b>. The symptoms paint a clear picture:</p>
+
+<p><b>Near-zero entropy:</b> The policy has become deterministic — it always picks the same action in each state. It has stopped exploring. This is the root cause.</p>
+
+<p><b>Low value loss:</b> The value function accurately predicts the rewards the current (converged) policy gets. This isn't good news — it means the value function has converged to the suboptimal policy's returns, not the optimal ones.</p>
+
+<p><b>Tiny KL divergence:</b> Each update barely changes the policy. Since the policy is already near-deterministic, the gradient signal is weak — the advantage estimates for the chosen action dominate, and unexplored actions have no gradient signal.</p>
+
+<p><b>The diagnosis: entropy collapsed early, the policy locked into a local optimum, and there's no mechanism to escape.</b></p>
+
+<p><b>Fixes, in order of impact:</b></p>
+
+<p><b>1. Entropy bonus coefficient:</b> Increase the entropy regularization term in the objective:</p>
+<span class="formula">L = L_CLIP + β · H(π)    where β is the entropy coefficient
+Typical: β = 0.01. If entropy collapsed, try β = 0.05 or 0.1</span>
+<p>This directly penalizes low-entropy policies and forces exploration.</p>
+
+<p><b>2. Entropy annealing:</b> Start with high entropy bonus (β = 0.1) and gradually reduce to β = 0.001 over training. Early exploration, late exploitation. This is what I'd try first — it addresses the root cause at the right time.</p>
+
+<p><b>3. Check action distribution parameterization:</b> If using a Gaussian policy with learned log_std, the log_std might have gone to -∞. Add a minimum std: <code>std = max(exp(log_std), 0.1)</code>. Or use a state-dependent std so the policy can be certain in well-explored regions and uncertain in novel ones.</p>
+
+<p><b>4. Learning rate:</b> If the learning rate is too high, early updates are too aggressive and the policy collapses before exploring. Reduce the learning rate or add a warm-up period with high entropy bonus.</p>
+
+<p><b>5. Reward normalization:</b> If rewards have high variance, early batches can produce extreme advantages that push the policy hard in one direction. Reward normalization stabilizes the gradient scale.</p>
+
+<p>For the <b>PPO pick-and-place</b> project, I used entropy regularization with coefficient 0.01 and minimum action std of 0.1 throughout training. The std floor was critical — without it, the policy would collapse to deterministic grasping at a single point, ignoring objects at other locations.</p>
+
+<span class="key-point">Key insight: Entropy is the exploration fuel of PPO. When it's gone, learning stops. Always monitor entropy alongside reward — a rising reward with falling entropy is healthy (the policy is becoming confidently good). A plateauing reward with collapsed entropy is a crisis (the policy is confidently mediocre).</span>
+
+<span class="interview-tip">🎯 Interview tip: Show your monitoring dashboard: "I always track four curves: reward, value loss, policy entropy, and KL divergence. The relationship between them tells me exactly what's happening. Plateauing reward + collapsed entropy = premature convergence. Plateauing reward + high entropy = the task is too hard or the reward is broken."</span>`
+  },
+  {
+    q: "What is reward shaping? Explain potential-based shaping and why naive shaping can change the optimal policy.",
+    diff: "intermediate",
+    a: `<p><b>Reward shaping</b> adds intermediate reward signals to guide the policy toward the goal, especially when the true reward is sparse. Instead of only +1 for grasping the object, you add +distance_improvement each step.</p>
+
+<p><b>The danger of naive shaping:</b> If you add arbitrary reward terms, you change what the optimal policy actually is. The policy maximizes YOUR reward, not the task objective. Classic example: adding a constant bonus for being near the object can make the policy hover near the object forever without grasping it — hovering collects infinite reward, grasping terminates the episode.</p>
+
+<p><b>Potential-based reward shaping (PBRS)</b> is the theoretically safe approach. It adds a shaping reward based on a potential function Φ(s):</p>
+
+<span class="formula">F(s, s') = γ·Φ(s') - Φ(s)
+
+Total reward: r_shaped = r_original + F(s, s')</span>
+
+<p><b>Key theorem (Ng et al., 1999):</b> Potential-based shaping provably preserves the optimal policy. The shaped MDP has the same optimal policy as the original MDP — the shaping only speeds up learning, it doesn't change what the policy converges to.</p>
+
+<p><b>Why it works:</b> The potential-based term is a telescoping sum over a trajectory: <code>Σ F(sₜ, sₜ₊₁) = γᵀΦ(sₜ) - Φ(s₀)</code>. It shifts the value of every policy by the same constant (relative to start state), so the ranking of policies is preserved.</p>
+
+<p><b>In practice (my PPO pick-and-place):</b></p>
+<p>I used a mix of potential-based and non-potential-based shaping. The reaching reward (<code>-distance_to_object</code>) is technically not PBRS, but it's monotonically aligned with the task goal. The danger is when shaping rewards create local optima that conflict with the real objective.</p>
+
+<span class="formula">My reward structure:
+r_reach = -||ee_pos - obj_pos||           [dense, not PBRS but aligned]
+r_grasp = +10 on successful grasp          [sparse, true objective]
+r_smooth = -0.1·||a - a_prev||²           [regularization]
+r_limits = -5 per joint limit violation     [safety constraint]</span>
+
+<p>The reaching reward could technically make the policy prefer hovering at distance 0 without grasping. I fixed this by making the grasp reward large enough (10) to dominate the reaching reward at close range, creating a clear incentive gradient: approach → grasp → lift.</p>
+
+<span class="key-point">Key insight: In practice, pure PBRS is rarely used because designing a good potential function is as hard as solving the problem. Most practitioners use heuristic shaping that's "close enough" — aligned with the task objective, with the magnitudes tuned so no shaping term can outweigh the true objective. The key discipline is: always ask "could the policy maximize this reward WITHOUT completing the task?"</span>
+
+<span class="interview-tip">🎯 Interview tip: Mention the Ng theorem by name — it signals theoretical depth. Then pivot to practice: "In reality, I use heuristic shaping but follow the discipline of checking for reward hacking at every stage. I always simulate 100 episodes and watch the behavior — if the policy found a loophole, I see it in the videos before looking at the reward curve."</span>`
+  },
+  {
+    q: "You need to train a policy for a 7-DOF arm to insert a peg into a hole with 0.5mm tolerance. PPO with dense rewards fails to solve it. What's your strategy?",
+    diff: "advanced",
+    a: `<p>0.5mm tolerance with a 7-DOF arm is a precision manipulation task that pushes RL to its limits. Standard PPO with position-based rewards fails because the success region is vanishingly small in the state space — the policy almost never stumbles into it through random exploration.</p>
+
+<p><b>Strategy 1 — Curriculum learning (my first attempt):</b></p>
+<p>Start with a large hole (5mm tolerance), train until solved, then progressively shrink: 5mm → 2mm → 1mm → 0.5mm. Each stage initializes from the previous policy. The policy learns coarse alignment first, then fine-grained insertion. Increase episode length at tighter tolerances to allow for careful correction.</p>
+
+<p><b>Strategy 2 — Demonstration-bootstrapped RL:</b></p>
+<p>Collect 50-100 demonstrations via teleoperation or scripted IK. Pre-train the policy with behavioral cloning (supervised learning on demo state-action pairs), then fine-tune with PPO. The BC initialization puts the policy in the right neighborhood — PPO refines it. This is dramatically more sample-efficient than RL from scratch.</p>
+
+<p><b>Strategy 3 — Hybrid reward with force feedback:</b></p>
+<span class="formula">Phase 1 (approach): r = -||p_peg - p_hole||            [Cartesian distance]
+Phase 2 (align):    r = -||orientation_error||          [alignment reward]
+Phase 3 (insert):   r = -contact_force_lateral          [minimize jamming]
+                      + insertion_depth                  [progress reward]
+                      + 100·success                      [task completion]</span>
+<p>The force-based reward in Phase 3 is critical — position alone can't guide insertion because the peg might be jammed. Penalizing lateral forces teaches the policy to wiggle and self-correct.</p>
+
+<p><b>Strategy 4 — Action space redesign:</b></p>
+<p>Switch from joint positions to Cartesian impedance actions: the policy outputs desired end-effector pose AND desired stiffness/damping. Low stiffness during insertion allows compliance — the peg can slide into the hole guided by contact forces. This is essentially learned impedance control.</p>
+
+<p><b>Strategy 5 — Observation augmentation:</b></p>
+<p>Add force/torque sensor readings to the observation space. Without force feedback, the policy is blind during insertion — it can't tell "I'm jammed" from "I'm inserting." A 6-axis F/T sensor at the wrist gives the critical contact information.</p>
+
+<p><b>My recommended approach: Strategy 2 + 3 + 4 combined.</b></p>
+<p>BC initialization to skip the exploration problem. Phase-based reward with force feedback for fine-grained guidance. Cartesian impedance actions for natural contact behavior. This combination is what state-of-the-art peg-insertion papers use.</p>
+
+<span class="key-point">Key insight: Precision manipulation breaks pure RL because the exploration problem is too hard — random actions at 0.5mm tolerance find the success region with essentially zero probability. You need either demonstrations, curriculum, or a fundamentally better action abstraction (impedance control) to bootstrap the policy into the right region of behavior space.</span>
+
+<span class="interview-tip">🎯 Interview tip: Show you understand why standard RL fails before proposing fixes: "The success region is ~0.5mm in a 1m workspace — that's 0.05% of the reachable space. Random exploration will never find it. So I need to either shrink the problem (curriculum), show the answer (demonstrations), or change the abstraction (impedance control) to make exploration feasible."</span>`
+  },
+  {
+    q: "Explain the sim-to-real gap concretely. What are the specific sources of mismatch and how does each affect policy transfer?",
+    diff: "core",
+    a: `<p>The sim-to-real gap is the difference between simulation and reality that causes a policy trained in sim to underperform on the real robot. Here are the specific sources:</p>
+
+<p><b>1. Dynamics mismatch (most impactful):</b></p>
+<p><b>Friction:</b> Simulated friction models (Coulomb, viscous) are approximations. Real friction depends on surface condition, temperature, speed, and contact geometry. Effect: the robot slips more or less than expected, destabilizing locomotion.</p>
+<p><b>Motor models:</b> Sim often uses ideal torque sources. Real motors have backlash, gear friction, thermal limits, torque ripple, and nonlinear current-torque relationships. Effect: commanded torques don't match actual torques, especially at high speeds or loads.</p>
+<p><b>Mass and inertia:</b> CAD models don't include cables, fasteners, or manufacturing tolerance. Real CoM and inertia differ by 5-15%. Effect: gravity compensation and dynamics-dependent behaviors (jumping, fast walking) are miscalibrated.</p>
+<p><b>Contact dynamics:</b> Sim contact models (soft, penalty-based in MuJoCo) don't capture real deformation, surface texture, or multi-point contact geometry. Effect: foot-ground interaction feels different, affecting gait stability.</p>
+
+<p><b>2. Observation mismatch:</b></p>
+<p><b>Sensor noise:</b> Real sensors have noise, quantization, bias, and dropout that sim doesn't model. Effect: the policy sees "cleaner" observations in sim and may rely on precision that doesn't exist in reality.</p>
+<p><b>Latency:</b> Communication delays between sensors, computer, and actuators. A 10ms delay at 100Hz control means the policy is acting on state information that's already stale. Effect: the policy over-corrects because it doesn't account for the delay.</p>
+<p><b>State estimation errors:</b> In sim, joint angles are exact. In reality, they come from encoders with quantization, flexible transmissions, and filtering. Effect: velocity estimates (often numerically differentiated) are noisy.</p>
+
+<p><b>3. Actuation mismatch:</b></p>
+<p><b>Actuator bandwidth:</b> Real motors can't change torque instantaneously — they have electrical and mechanical time constants. Sim often applies actions instantly. Effect: high-frequency commands (like vibration) work in sim but not on hardware.</p>
+<p><b>Position vs torque control:</b> If the real robot uses position control internally (many commercial robots do), there's an inner PD loop that the RL policy doesn't control. Its gains may differ from the sim PD gains. Effect: the effective compliance is different.</p>
+
+<p><b>How each is addressed:</b></p>
+<p><b>Dynamics mismatch → Domain randomization + system identification</b></p>
+<p><b>Observation mismatch → Observation noise DR + latency simulation</b></p>
+<p><b>Actuation mismatch → Actuator models in sim + action delay randomization</b></p>
+
+<span class="key-point">Key insight: The sim-to-real gap is not one problem — it's at least a dozen specific mismatches. Addressing them requires both randomization (making the policy robust to uncertainty) and identification (making the sim more accurate). The best approaches do both: identify what you can, randomize over what you can't.</span>
+
+<span class="interview-tip">🎯 Interview tip: Be specific about which gap matters most for your task. "For quadruped locomotion, the biggest gap was action latency — the real robot had 15ms of communication delay that sim didn't model. Adding latency randomization (0-20ms) was the single change that most improved transfer." Task-specific analysis beats generic lists.</span>`
+  },
+  {
+    q: "Explain entropy regularization. Why is it in the PPO objective, and how does it interact with the exploration-exploitation tradeoff?",
+    diff: "core",
+    a: `<p><b>Entropy</b> of a policy π measures how random its action selection is:</p>
+
+<span class="formula">H(π(·|s)) = -Σ π(a|s) · log π(a|s)    [discrete]
+H(π(·|s)) = ½ log(2πe·σ²)              [Gaussian policy, per dimension]</span>
+
+<p>High entropy = spread out, exploratory. Low entropy = peaked, deterministic. Zero entropy = always picks the same action.</p>
+
+<p><b>PPO's full objective:</b></p>
+<span class="formula">L = L_CLIP - c₁·L_VF + c₂·H(π)
+where c₂ is the entropy coefficient (typically 0.01)</span>
+
+<p>The entropy bonus <code>c₂·H(π)</code> rewards the policy for maintaining randomness. Without it, the policy can collapse to deterministic behavior early in training — choosing one action that got a high reward by chance and never exploring alternatives.</p>
+
+<p><b>The exploration-exploitation interaction:</b></p>
+
+<p><b>Early training (exploration dominant):</b> The policy doesn't know what's good. High entropy ensures it tries diverse actions and discovers different strategies. The entropy bonus prevents premature commitment to a suboptimal strategy.</p>
+
+<p><b>Late training (exploitation dominant):</b> The policy has learned a good strategy. Entropy should decrease naturally as the policy becomes more confident. But the entropy bonus resists this — it can prevent the policy from fully committing to the optimal action, leaving residual randomness that hurts performance.</p>
+
+<p><b>Solution: entropy annealing.</b> Start with c₂ = 0.05 (explore aggressively), decay to c₂ = 0.001 over training. Or use adaptive entropy (SAC-style) where the target entropy is a hyperparameter and the coefficient adjusts automatically.</p>
+
+<p><b>For Gaussian policies (continuous control):</b> Entropy is controlled through the standard deviation σ. The entropy bonus encourages larger σ. In practice, I parameterize log(σ) as a learnable parameter (state-independent in PPO, state-dependent in SAC) and monitor it during training. If log(σ) goes below -3 (σ < 0.05), exploration has effectively stopped.</p>
+
+<span class="key-point">Key insight: Entropy regularization in RL is analogous to temperature in simulated annealing or exploration noise in classical control. It's not just "add randomness" — it's a principled way to maintain a broad search early and narrow it as confidence increases. The coefficient c₂ is the temperature knob.</span>
+
+<span class="interview-tip">🎯 Interview tip: Show you monitor entropy as a diagnostic: "I track the policy entropy per training step. If it drops below a threshold early in training, I know the policy is collapsing and I increase the entropy coefficient. If it stays high late in training, the policy hasn't committed and I reduce it. It's the exploration thermostat."</span>`
+  },
+  {
+    q: "Design a reward function for a humanoid to walk to a goal position, pick up a box, and carry it to a different location. How do you handle the multi-phase structure?",
+    diff: "advanced",
+    a: `<p>This is a multi-phase sequential task — the hardest type to train with RL because the policy must discover the correct sequence of behaviors AND execute each one well.</p>
+
+<p><b>Phase decomposition:</b></p>
+<span class="formula">Phase 1: Walk to box      (locomotion + navigation)
+Phase 2: Reach and grasp   (manipulation)
+Phase 3: Walk to goal      (locomotion while carrying)
+Phase 4: Place box         (manipulation)</span>
+
+<p><b>Reward design — option A: monolithic shaped reward:</b></p>
+<span class="formula">r = w₁·(-d_robot_to_box) · (1 - grasped)        [approach box if not holding]
+  + w₂·grasp_reward · (1 - delivered)             [reward for grasping]
+  + w₃·(-d_robot_to_goal) · grasped               [approach goal if holding]
+  + w₄·place_reward                                [reward for placing]
+  + locomotion_rewards (smoothness, upright, etc.) [always active]</span>
+
+<p>The boolean flags <code>grasped</code> and <code>delivered</code> gate which terms are active. The <code>(1 - grasped)</code> multiplier turns off the approach-box reward once the box is held, preventing the policy from trying to re-approach. This is simple but fragile — the reward landscape has sharp transitions at phase boundaries.</p>
+
+<p><b>Reward design — option B: curriculum over phases:</b></p>
+<p>Train Phase 3+4 first (start holding box near goal → walk and place). Then prepend Phase 2 (start near box → grasp → walk → place). Then prepend Phase 1 (start far → walk → grasp → carry → place). Each phase starts from a curriculum that backward-chains from the goal. This is dramatically easier to train because each phase starts from a state distribution where the next phase is already learned.</p>
+
+<p><b>Reward design — option C: hierarchical RL:</b></p>
+<p>Train a high-level policy that selects sub-goals (walk to box, grasp, walk to goal, place) and low-level policies that execute each sub-goal. The high-level policy switches between trained low-level skills. This is the most scalable but requires a well-defined skill interface.</p>
+
+<p><b>My recommended approach: Option B (backward curriculum) with Option A's reward structure.</b></p>
+<p>Start training from Phase 3 (already holding box). Once the carry-and-place policy is robust, expand the initial state distribution to include Phase 2 (need to grasp). Continue expanding backward. The reward structure handles all phases, and the curriculum ensures the policy encounters achievable sub-tasks at each stage.</p>
+
+<p><b>Critical details:</b></p>
+<p>1. The locomotion reward (upright, smooth actions, velocity tracking) should be active in ALL phases — don't let the policy learn to walk differently when carrying vs not.</p>
+<p>2. The grasp reward should be dense (force-based or distance-to-pregrasp) not just binary success.</p>
+<p>3. Box-carrying changes the robot's CoM and inertia — the locomotion controller must be robust to this. Include mass variation in DR during carry phase.</p>
+
+<span class="key-point">Key insight: Multi-phase tasks are hard because RL's credit assignment spans the full sequence — a bad grasp in Phase 2 causes a drop in Phase 3, and the policy must propagate this signal backward. Curriculum learning solves this by teaching the end first, so each earlier phase has a clear "what comes next" signal to learn from.</span>
+
+<span class="interview-tip">🎯 Interview tip: Show hierarchical thinking: "I'd decompose into phases, use backward curriculum, and verify each phase independently before chaining. The alternative — monolithic training — works for simple tasks but scales poorly. I learned this on the pick-and-place project where even a 2-phase task (reach + grasp) benefited from curricularized initial state distributions."</span>`
+  },
+  {
+    q: "Compare behavioral cloning, DAgger, and RL for learning a manipulation policy. When does each approach win, and what happens when you combine them?",
+    diff: "advanced",
+    a: `<p>These represent three points on the spectrum from pure imitation to pure exploration.</p>
+
+<p><b>Behavioral Cloning (BC):</b></p>
+<p>Supervised learning on demonstration data: <code>minimize ||π(s) - a_demo||²</code>. Fast to train, simple to implement. But suffers from <b>distribution shift</b> — at test time, the policy makes a small error, enters a state the demos never visited, makes a bigger error, and cascades. This is the fundamental BC failure mode. Works well when demos are abundant and diverse, and the task is short-horizon.</p>
+
+<p><b>DAgger (Dataset Aggregation):</b></p>
+<p>Fixes distribution shift iteratively: (1) run the current policy, (2) have the expert label the VISITED states (not just the demo states), (3) add these to the dataset, (4) retrain. After a few iterations, the training distribution matches the policy's actual distribution. Provably reduces the error from O(T²) (BC) to O(T). But requires an <b>interactive expert</b> — someone must label the new states, which is expensive for real robots.</p>
+
+<p><b>RL (PPO, SAC):</b></p>
+<p>Learns from reward signal through trial and error. No demonstrations needed. Can discover novel strategies beyond human capability. But sample-inefficient, requires reward engineering, and may not find the task-relevant region of state space without guidance.</p>
+
+<p><b>When each wins:</b></p>
+<p><b>BC wins:</b> Abundant demos, short-horizon tasks, safety-critical settings where exploration is dangerous (surgical robots). Also great as initialization for RL.</p>
+<p><b>DAgger wins:</b> When you have access to a scripted or learned expert (not a human), so labeling is cheap. For example, MPC as the expert — DAgger distills MPC into a fast neural network policy.</p>
+<p><b>RL wins:</b> Tasks where demonstrations are impractical (locomotion over rough terrain — you can't teleoperate this), reward is well-defined, and sim is available for safe exploration.</p>
+
+<p><b>The powerful combination: BC → RL fine-tuning.</b></p>
+<p>Pretrain with BC on demos (fast, gets you 80% there), then fine-tune with RL (discovers improvements beyond human demonstration quality). In <b>PRANA</b>, I used a flow-matching policy (a form of generative imitation) with DINOv2 backbone — this is in the BC family but with a generative model instead of MSE regression, which handles multimodal demonstrations better.</p>
+
+<p>Another combination: <b>RL with demonstration replay.</b> Add demonstrations to the replay buffer of an off-policy algorithm (SAC). The demos provide initial signal for the Q-function, bootstrapping exploration. The policy can then improve beyond demo quality.</p>
+
+<span class="key-point">Key insight: The field is converging on "pretrain with imitation, fine-tune with RL" as the default approach for manipulation. Imitation handles the exploration problem (getting into the right neighborhood), RL handles the optimization problem (getting to the optimal behavior). Neither alone is sufficient for complex tasks.</span>
+
+<span class="interview-tip">🎯 Interview tip: Connect to your PRANA project: "In PRANA, I used flow matching — a generative form of imitation learning that handles multimodal demonstrations. If I needed to go beyond demo performance, I'd fine-tune with RL. This pretrain-then-finetune paradigm is the current standard in the VLA model space."</span>`
+  },
+  {
+    q: "Your PPO training uses 4096 parallel environments. Explain exactly what's happening computationally and why parallelism helps PPO specifically.",
+    diff: "intermediate",
+    a: `<p>This is the core engineering that makes modern robot RL practical. Here's what happens at each PPO iteration:</p>
+
+<p><b>Step 1 — Parallel rollout collection:</b></p>
+<p>4096 copies of the environment run simultaneously on the GPU (in Isaac Sim/Lab or MJX). Each environment has its own robot, its own randomized parameters, and its own state. At each step, ALL 4096 observations are batched into a single tensor [4096 × obs_dim], fed through the policy network in ONE forward pass, producing 4096 actions. The physics engine steps all environments in parallel. After N steps (typically N=24), you have 4096×24 = ~100K transitions.</p>
+
+<span class="formula">One PPO iteration:
+  Collect: 4096 envs × 24 steps = 98,304 transitions (~0.1 seconds on GPU)
+  Compute: GAE advantages for all transitions
+  Update: 5-10 epochs of minibatch SGD on the 98K transitions
+  Repeat</span>
+
+<p><b>Why parallelism specifically helps PPO:</b></p>
+
+<p><b>1. On-policy requirement:</b> PPO throws away data after each update — it can't reuse old data like SAC. This makes it data-hungry. Without parallelism, collecting 100K transitions would take 100K steps × 0.01s = ~17 minutes at real-time speed. With 4096 parallel envs, the same data takes ~0.5 seconds of GPU time. Parallelism makes PPO's data hunger a non-issue.</p>
+
+<p><b>2. Batch diversity:</b> 4096 environments with domain randomization means each batch contains experience from diverse conditions — different friction, mass, terrain. This provides a rich gradient signal that's inherently regularized. With fewer environments, each batch is less diverse and the policy overfits to specific conditions.</p>
+
+<p><b>3. Variance reduction:</b> More transitions per batch means lower-variance gradient estimates. PPO's advantage estimates are computed per-trajectory, so more trajectories reduce the noise in the policy gradient. This allows larger learning rates and fewer updates per iteration.</p>
+
+<p><b>4. GPU utilization:</b> Neural network forward passes are most efficient when batched. Processing 4096 observations takes nearly the same GPU time as processing 1. Same for the physics engine in Isaac Sim — GPU-parallelized simulation has near-constant time up to the GPU's parallelism limit.</p>
+
+<p>At <b>SpaceData</b>, going from 256 to 4096 environments was one of the key changes in the 70% improvement. Training time dropped from hours to ~30 minutes for the same number of gradient steps, and the batch diversity eliminated overfitting to specific dynamics configurations.</p>
+
+<span class="key-point">Key insight: GPU-parallel simulation didn't just speed up PPO — it fundamentally changed its character. With 4096 envs, each batch is a mini-dataset covering a wide distribution of dynamics. PPO effectively becomes a batch optimization algorithm with strong generalization, not a high-variance online learner.</span>
+
+<span class="interview-tip">🎯 Interview tip: Mention the numbers: "4096 parallel envs on an RTX 4090, collecting 100K transitions in 0.1 seconds. Each batch covers the full DR distribution. This is why PPO dominates sim-to-real — the parallelism makes on-policy's data hunger irrelevant." Concrete throughput numbers impress interviewers.</span>`
+  },
+  {
+    q: "What is curriculum learning for RL and how do you design a curriculum for a locomotion task? What can go wrong?",
+    diff: "intermediate",
+    a: `<p><b>Curriculum learning</b> starts the agent on easy tasks and progressively increases difficulty. The intuition is biological — you learn to crawl before you walk, walk before you run. In RL, it solves the exploration problem by ensuring the policy always faces tasks just beyond its current capability.</p>
+
+<p><b>Designing a locomotion curriculum:</b></p>
+
+<p><b>Dimension 1 — Terrain difficulty:</b></p>
+<span class="formula">Level 0: Flat ground
+Level 1: Flat + small random bumps (2cm)
+Level 2: Gentle slopes (5°)
+Level 3: Rough terrain (5cm obstacles)
+Level 4: Stairs, gaps, large obstacles</span>
+
+<p><b>Dimension 2 — Speed command:</b></p>
+<span class="formula">Level 0: Stand still (balance only)
+Level 1: Slow walk (0.3 m/s)
+Level 2: Normal walk (0.8 m/s)
+Level 3: Fast walk (1.5 m/s)
+Level 4: Running (2.5 m/s)</span>
+
+<p><b>Dimension 3 — Domain randomization range:</b></p>
+<span class="formula">Level 0: Narrow DR (±5% mass, friction 0.8-1.0)
+Level 1: Medium DR (±10%, friction 0.5-1.2)
+Level 2: Full DR (±20%, friction 0.3-1.5)</span>
+
+<p><b>Progression mechanism:</b> Automatic promotion based on reward threshold. Each environment independently tracks its level. When an environment's average reward exceeds a threshold for 100 consecutive episodes, it advances to the next level. This means fast-learning environments advance while struggling ones stay at easier levels — the curriculum adapts per-environment.</p>
+
+<p><b>What can go wrong:</b></p>
+
+<p><b>1. Catastrophic forgetting:</b> The policy masters Level 2 but when promoted to Level 3, it forgets how to walk on flat ground. Fix: maintain a mix of difficulty levels — always include 20% of environments at earlier levels. At SpaceData, I kept the level distribution balanced rather than purely progressive.</p>
+
+<p><b>2. Curriculum gap too large:</b> If Level 2 → Level 3 is too big a jump, the policy can't bridge it. The reward drops to near-zero at Level 3, and the gradient signal vanishes. Fix: add intermediate levels or make the difficulty a continuous parameter rather than discrete stages.</p>
+
+<p><b>3. Curriculum-dependent behavior:</b> The policy learns to exploit curriculum-specific artifacts. For example, if easy levels always have the same terrain, the policy memorizes it rather than learning generalizable walking. Fix: randomize terrain within each level.</p>
+
+<p><b>4. Over-specialized hierarchy:</b> If the curriculum is too structured, the policy learns level-specific strategies that don't compose. The flat-ground policy is fundamentally different from the rough-terrain policy. Fix: ensure the observation space is rich enough to perceive difficulty changes, so one policy can handle the full range.</p>
+
+<span class="key-point">Key insight: The best curriculum is implicit — domain randomization with adaptive difficulty. Instead of hand-designing levels, start with narrow DR ranges and widen them as performance improves. This is essentially automatic curriculum learning over the DR space. It's what I converged on at SpaceData after experimenting with explicit terrain curricula.</span>
+
+<span class="interview-tip">🎯 Interview tip: Show you've iterated: "I started with a hand-designed 5-level terrain curriculum but found the level transitions caused forgetting. I switched to adaptive DR — starting narrow and widening as performance improved — which was simpler and more robust. The key insight is that DR range IS the curriculum."</span>`
+  },
+  {
+    q: "Your policy trains perfectly in Isaac Sim but the same MuJoCo environment gives completely different behavior. What are the likely causes?",
+    diff: "advanced",
+    a: `<p>Cross-simulator transfer failures are sneaky because both simulators are "correct" — they just make different physical assumptions. Here are the concrete differences:</p>
+
+<p><b>1. Contact model differences (most impactful):</b></p>
+<p><b>MuJoCo:</b> Uses a soft contact model with <code>solref</code>/<code>solimp</code> parameters. Contacts have finite compliance — objects slightly interpenetrate. The contact forces are computed by the constraint solver and depend on solver iterations and parameters.</p>
+<p><b>Isaac Sim (PhysX):</b> Uses GPU-accelerated rigid body contacts with different penetration recovery and friction models. The default stiffness, damping, and friction handling differ from MuJoCo.</p>
+<p><b>Effect:</b> A locomotion policy that relies on specific foot-ground interaction dynamics (sliding, bouncing, contact timing) behaves differently. Feet might slip more in one simulator.</p>
+
+<p><b>2. Integration scheme and timestep:</b></p>
+<p><b>MuJoCo:</b> Semi-implicit Euler or implicit (Runge-Kutta optionally). Typical timestep: 0.002s with 5 substeps.</p>
+<p><b>Isaac Sim:</b> PhysX uses its own integration with different stability characteristics. Typical timestep: 1/120s or 1/240s.</p>
+<p><b>Effect:</b> Different timesteps mean the policy's effective control frequency differs. A policy trained at 50Hz in Isaac Sim receiving actions at 50Hz in MuJoCo might have different dynamics because the underlying physics steps differ.</p>
+
+<p><b>3. Joint and actuator models:</b></p>
+<p><b>MuJoCo:</b> Has explicit actuator models (position, velocity, motor, general) with configurable dynamics (armature, damping, frictionloss).</p>
+<p><b>Isaac Sim:</b> Uses ArticulationView with PD drives that have their own stiffness/damping parameters. The PD implementation details differ.</p>
+<p><b>Effect:</b> Even if you set the same Kp/Kd values, the actual closed-loop behavior differs due to implementation differences in how the PD torque is applied (pre vs post integration, etc.).</p>
+
+<p><b>4. Convention differences:</b></p>
+<p>Joint ordering, rotation conventions (Isaac uses quaternion wxyz vs MuJoCo's wxyz), coordinate frame handedness, gravity direction sign. These are pure software bugs but cause the most frustrating failures.</p>
+
+<p><b>Debugging approach:</b></p>
+<p>1. Apply the SAME action sequence to both simulators and compare resulting joint trajectories frame by frame. Divergence reveals which physical component differs.</p>
+<p>2. Set both to identical timesteps and disable all randomization.</p>
+<p>3. Check joint ordering by commanding one joint at a time.</p>
+<p>4. Compare gravity compensation torques — if <code>g(q)</code> differs, the dynamics models are different.</p>
+<p>5. Compare free-fall behavior (drop the robot) to isolate mass/inertia differences from contact differences.</p>
+
+<span class="key-point">Key insight: When transferring between simulators, treat it like sim-to-real transfer. The same DR and robustification techniques apply. In fact, training across multiple simulators simultaneously (MuJoCo + Isaac) can make the policy more robust to simulator-specific artifacts — similar to how DR makes it robust to parameter variation.</span>
+
+<span class="interview-tip">🎯 Interview tip: Reference the Pinocchio↔MuJoCo frame mismatch from BHEEMA as a concrete example: "I've debugged cross-framework issues before — in BHEEMA, Pinocchio and MuJoCo used different body frame conventions, which made the Jacobians compute forces in the wrong frame. The fix was an explicit rotation between the two conventions. Same category of bug happens between any two simulation platforms."</span>`
+  },
+  {
+    q: "What is the value function and why do we need a separate critic network in PPO? What happens when the value function is inaccurate?",
+    diff: "core",
+    a: `<p>The <b>value function V(s)</b> estimates the expected total future reward from state s under the current policy:</p>
+
+<span class="formula">V^π(s) = E_π[Σₜ γᵗ rₜ | s₀ = s]</span>
+
+<p>It answers: "How good is it to be in this state, given how I currently behave?"</p>
+
+<p><b>Why PPO needs a separate critic:</b></p>
+<p>PPO's advantage estimate is <code>Â = r + γV(s') - V(s)</code> (simplified). The advantage tells the policy "this action was better/worse than average." Without V, you'd use Monte Carlo returns (actual total reward), which have high variance because they depend on every future action. V provides a <b>baseline</b> that reduces variance: instead of "I got 100 total reward" (which fluctuates wildly), you compute "I got 5 more than expected" (much more stable).</p>
+
+<p><b>The critic is a separate network</b> because actor and critic have conflicting training dynamics. The actor (policy) changes what actions are taken, which changes the state distribution. The critic must track a moving target (the value of the changing policy). Sharing parameters causes instability — the critic's gradients corrupt the actor's representations.</p>
+
+<p><b>When the value function is inaccurate:</b></p>
+
+<p><b>Overestimation (V too high):</b> Advantages Â = r + γV(s') - V(s) are biased downward because V(s) is inflated. Good actions look worse than they are. The policy becomes overly conservative — it avoids actions that are actually good because the advantage looks negative.</p>
+
+<p><b>Underestimation (V too low):</b> Advantages are biased upward. Bad actions look better than they are. The policy takes risky actions because the advantage is artificially positive.</p>
+
+<p><b>High-variance V:</b> The advantages are noisy. The policy gradient has high variance, causing unstable training — the reward curve oscillates wildly between updates.</p>
+
+<p><b>Systematically wrong V:</b> If V is wrong in a structured way (e.g., consistently overestimates in dangerous states), the policy can be driven toward dangerous behavior. For locomotion, if V overestimates recovery from near-falls, the policy will be too aggressive and fall more often.</p>
+
+<p><b>Monitoring value function quality:</b></p>
+<span class="formula">Explained variance = 1 - Var(returns - V) / Var(returns)
+  > 0.9  → V is excellent
+  0.5-0.9 → V is decent, might benefit from more training
+  < 0.5  → V is poor, increase GAE λ toward 1.0 (trust MC more)</span>
+
+<span class="key-point">Key insight: The critic quality is the hidden bottleneck in PPO training. A poor critic produces noisy advantages that make policy learning unstable. Always monitor explained variance. If it's low, the problem might not be the policy architecture or reward — it might be the critic architecture or learning rate.</span>
+
+<span class="interview-tip">🎯 Interview tip: Mention the practical diagnostic: "I monitor explained variance of the value function. Below 0.5, I increase GAE λ to rely more on Monte Carlo returns. I also check if the critic architecture is expressive enough — a 2-layer MLP might not capture the value landscape of a complex locomotion task."</span>`
+  },
+  {
+    q: "You need to deploy an RL locomotion policy on a real robot with only 10ms compute budget per control step. The policy inference takes 15ms. What do you do?",
+    diff: "advanced",
+    a: `<p>This is a real production constraint — the policy is too slow for the control loop. Several solutions, from quick fixes to architectural changes:</p>
+
+<p><b>Solution 1 — Network pruning and quantization (fastest to implement):</b></p>
+<p>Convert the policy from float32 to float16 or int8 quantization. For a typical 3-layer MLP [256, 256, 12], this can halve inference time with minimal accuracy loss. Also try reducing hidden dimensions: [256, 256] → [128, 128]. For locomotion, I've found that [128, 64] often works as well as [256, 256] — the task isn't that complex. Retrain with the smaller network; don't just prune a trained large network.</p>
+
+<p><b>Solution 2 — ONNX Runtime or TensorRT optimization:</b></p>
+<p>Export the PyTorch model to ONNX and run with ONNX Runtime's optimized backend. TensorRT can further optimize for NVIDIA hardware with operator fusion and kernel autotuning. This alone can give 2-3x speedup without changing the model. Combined with quantization, 15ms → 5ms is realistic.</p>
+
+<p><b>Solution 3 — Action repetition / temporal abstraction:</b></p>
+<p>Run the policy at a lower frequency (e.g., 50Hz instead of 100Hz) and repeat each action for 2 steps. The PD controller at the joint level runs at 1kHz regardless, so the robot still has low-level stability. Many locomotion policies work fine at 50Hz — the gait dynamics are slower than 100Hz. At SpaceData, the RL policy ran at 50Hz and the PD tracker at 1kHz.</p>
+
+<p><b>Solution 4 — Asynchronous inference pipeline:</b></p>
+<p>Decouple the observation-action pipeline from the control loop. The control loop runs at 100Hz using the LAST computed action + PD interpolation. The policy inference runs asynchronously — when a new action is ready, it's swapped in. This adds 1-step latency but guarantees the control loop never stalls. Model this latency during training (action delay randomization) so the policy is robust to it.</p>
+
+<p><b>Solution 5 — Policy distillation:</b></p>
+<p>Train a large "teacher" policy with unlimited compute budget. Then train a smaller "student" network to mimic the teacher's outputs (behavioral cloning on the teacher's rollouts). The student can be a tiny MLP [64, 32] that runs in 2ms. This is the cleanest long-term solution for deployment-constrained platforms.</p>
+
+<p><b>My recommended stack: Solution 3 + 2 + 4.</b></p>
+<p>Run the policy at 50Hz (20ms budget → 15ms fits). Export to ONNX Runtime (brings inference to 8ms even before this). Use the async pipeline as safety net. And during training, randomize action delay 0-20ms so the policy handles variable latency gracefully.</p>
+
+<span class="key-point">Key insight: The 10ms control budget is for the FULL loop (sense → infer → actuate), not just inference. Factor in sensor reading (1-2ms), communication (1-2ms), and PD computation (< 1ms). If total overhead is 5ms, you only have 5ms for the policy — even more reason to optimize aggressively.</span>
+
+<span class="interview-tip">🎯 Interview tip: Show end-to-end systems awareness: "I'd first check if 100Hz is actually necessary — most locomotion works at 50Hz. Then optimize the inference pipeline (ONNX + quantization). And critically, I'd model the compute latency during training so the policy is robust to timing variation." The systems perspective differentiates senior from junior engineers.</span>`
+  },
+  {
+    q: "Explain why RL for robotics is hard compared to RL for games. What fundamental differences make Atari/Go approaches insufficient?",
+    diff: "core",
+    a: `<p>RL had spectacular success in games (Atari, Go, StarCraft). Robotics has been much harder. The differences are fundamental, not just engineering:</p>
+
+<p><b>1. Continuous vs discrete action spaces:</b></p>
+<p>Atari has ~18 discrete actions. A quadruped has 12 continuous joint torques — the action space is ℝ¹². You can't enumerate actions or use Q-learning directly. You need policy gradient methods (PPO, SAC) that handle continuous distributions, which have higher variance and more hyperparameter sensitivity.</p>
+
+<p><b>2. Physical consequences (no reset button):</b></p>
+<p>In Atari, a bad action costs a life — you just reset. On a real robot, a bad action can break hardware, hurt people, or damage the environment. Exploration must be safe. You can't do ε-greedy exploration on a humanoid — "try a random action 10% of the time" means falling 10% of the time. This fundamentally limits how much you can explore on real hardware.</p>
+
+<p><b>3. Sample efficiency matters enormously:</b></p>
+<p>AlphaGo trained on millions of games. A real robot can do maybe 10-50 episodes per hour. Even in sim, physics simulation is 100-1000x slower than rendering game frames. This is why sample-efficient algorithms and sim-to-real matter — you literally can't afford the billions of samples that game RL uses.</p>
+
+<p><b>4. Partial observability and sensor noise:</b></p>
+<p>Atari gives you the full game state (pixels show everything). A robot has noisy, partial observations — occluded cameras, drifting IMUs, delayed measurements. The policy must be robust to observation uncertainty, which games don't require.</p>
+
+<p><b>5. Non-stationarity:</b></p>
+<p>Game physics are perfectly deterministic and stationary. Real-world dynamics change — motors heat up, surfaces wear, payloads vary, weather changes. The policy must generalize across a distribution of dynamics, not just one.</p>
+
+<p><b>6. Multi-objective rewards:</b></p>
+<p>Games have clear scores. Robot tasks have competing objectives: be fast, be smooth, be energy-efficient, don't fall, don't hit obstacles, track the reference. Balancing these is reward engineering — a skill that doesn't exist in game RL.</p>
+
+<p><b>7. The simulation gap:</b></p>
+<p>Games ARE the simulation — there's no "real world" that differs. Robot sim is an approximation of reality, with all the mismatch issues we discussed. Game RL doesn't have sim-to-real transfer because there's no "real."</p>
+
+<span class="key-point">Key insight: The fundamental difference is that games are closed, discrete, safe, and stationary systems with clear rewards. Robotics is open, continuous, dangerous, and non-stationary with ambiguous rewards. Every technique that worked in games (massive exploration, raw pixel input, simple reward, no transfer) must be replaced with a robotics-specific solution (safe exploration, proprioceptive input, shaped rewards, sim-to-real transfer).</span>
+
+<span class="interview-tip">🎯 Interview tip: Pick the 2-3 most impactful differences and go deep rather than listing all 7 shallowly. "The two fundamental differences are safety (exploration is dangerous on hardware) and the sim-to-real gap (games don't have a 'real world'). Everything else — sample efficiency, continuous actions, reward design — follows from these."</span>`
+  }
+];
+
+// ── LOCALSTORAGE HELPERS ──
+function getCompleted() { try { return JSON.parse(localStorage.getItem('roboprep_completed') || '{}'); } catch { return {}; } }
+function setCompleted(c) { localStorage.setItem('roboprep_completed', JSON.stringify(c)); }
+function getXP() { return parseInt(localStorage.getItem('roboprep_xp') || '0', 10); }
+function setXP(v) { localStorage.setItem('roboprep_xp', String(v)); }
+function getStreak() { try { return JSON.parse(localStorage.getItem('roboprep_streak') || '{"count":0,"lastDate":""}'); } catch { return {count:0,lastDate:''}; } }
+function updateStreak() { const s = getStreak(); const today = new Date().toISOString().slice(0,10); if (s.lastDate === today) return; const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10); s.count = (s.lastDate === yesterday) ? s.count + 1 : 1; s.lastDate = today; localStorage.setItem('roboprep_streak', JSON.stringify(s)); }
+
+let currentFilter = 'all'; let searchTerm = '';
+
+function refreshNav() { updateStreak(); document.getElementById('nav-xp').textContent = getXP(); document.getElementById('nav-streak').textContent = getStreak().count; const c = getCompleted(); let total = 0; for (const k in c) { if (k.startsWith(SECTION_KEY + '-') && c[k]) total++; } document.getElementById('nav-done').textContent = total; }
+function refreshProgress() { const c = getCompleted(); let done = 0; for (let i = 0; i < QUESTIONS.length; i++) { if (c[SECTION_KEY + '-' + i]) done++; } document.getElementById('prog-text').textContent = done + ' / ' + QUESTIONS.length; document.getElementById('prog-bar').style.width = (done / QUESTIONS.length * 100) + '%'; }
+
+function renderCards() {
+  const list = document.getElementById('qa-list'); list.innerHTML = ''; const c = getCompleted();
+  QUESTIONS.forEach((item, idx) => {
+    if (currentFilter !== 'all' && item.diff !== currentFilter) return;
+    if (searchTerm && !item.q.toLowerCase().includes(searchTerm.toLowerCase())) return;
+    const key = SECTION_KEY + '-' + idx; const done = !!c[key];
+    const card = document.createElement('div');
+    card.className = 'qa-card' + (done ? ' completed' : '');
+    card.style.animationDelay = (idx * 0.03) + 's';
+    card.innerHTML = `<div class="qa-question" data-idx="${idx}"><span class="qa-num">${String(idx + 1).padStart(2, '0')}</span><span class="qa-text">${item.q}</span><div class="qa-badges"><span class="diff-badge ${item.diff}">${item.diff}</span><span class="qa-chevron">▾</span></div></div><div class="qa-answer"><div class="qa-answer-inner">${item.a}<button class="review-btn ${done ? 'done' : ''}" data-idx="${idx}">${done ? '✓ Reviewed' : '☐ Mark as Reviewed'}</button></div></div>`;
+    list.appendChild(card);
+  });
+  list.querySelectorAll('.qa-question').forEach(el => { el.addEventListener('click', () => { const card = el.parentElement; const wasOpen = card.classList.contains('open'); list.querySelectorAll('.qa-card.open').forEach(c => c.classList.remove('open')); if (!wasOpen) card.classList.add('open'); }); });
+  list.querySelectorAll('.review-btn').forEach(el => { el.addEventListener('click', (e) => { e.stopPropagation(); const idx = el.dataset.idx; const key = SECTION_KEY + '-' + idx; const c = getCompleted(); if (c[key]) { delete c[key]; setXP(Math.max(0, getXP() - 10)); } else { c[key] = true; setXP(getXP() + 10); } setCompleted(c); refreshNav(); refreshProgress(); renderCards(); }); });
+}
+
+document.querySelectorAll('.filter-chip').forEach(chip => { chip.addEventListener('click', () => { document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active')); chip.classList.add('active'); currentFilter = chip.dataset.diff; renderCards(); }); });
+document.getElementById('search-input').addEventListener('input', (e) => { searchTerm = e.target.value; renderCards(); });
+refreshNav(); refreshProgress(); renderCards();
+</script>
+</body>
+</html>
